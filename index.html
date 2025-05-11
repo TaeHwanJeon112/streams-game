@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱</title>
+  <title>스트림스 웹앱 v2</title>
   <style>
     body {
       background-color: white;
@@ -29,7 +29,7 @@
     .tile {
       background-color: white;
     }
-    .tile.glow {
+    .highlight {
       animation: glow 1s infinite alternate;
     }
     .cell {
@@ -42,13 +42,14 @@
   </style>
 </head>
 <body>
-  <h1>스트림스 웹앱</h1>
+  <h1>스트림스 웹앱 v2</h1>
   <p>이름: <input type="text" id="player" /></p>
   <div class="tile-container" id="tileContainer"></div>
+  <button onclick="drawNextTile()">다음 타일 뽑기</button>
   <h3>20칸 보드</h3>
   <div class="board" id="board"></div>
   <p>점수: <span id="score">0</span></p>
-  <button onclick="submitResult()">결과 저장</button>
+  <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
 
   <script>
     const scoreTable = {
@@ -56,40 +57,67 @@
       11: 30, 12: 35, 13: 40, 14: 50, 15: 60, 16: 70, 17: 85, 18: 100, 19: 150, 20: 300
     };
 
-    const tiles = [];
+    let tiles = [];
     for (let i = 1; i <= 30; i++) {
       const count = (i >= 11 && i <= 19) ? 2 : 1;
       for (let j = 0; j < count; j++) tiles.push(i);
     }
-    tiles.push('*'); // 조커
+    tiles.push('*');
+    tiles.sort((a, b) => (a === '*' ? 1 : b === '*' ? -1 : a - b));
 
-    const shuffled = tiles.sort(() => Math.random() - 0.5);
     const tileContainer = document.getElementById("tileContainer");
     const board = document.getElementById("board");
+    const submitBtn = document.getElementById("submitBtn");
+    let remaining = [...tiles];
+    let activeTile = null;
+    let placedCount = 0;
 
-    shuffled.forEach((num, i) => {
-      const div = document.createElement("div");
-      div.className = "tile glow";
-      div.draggable = true;
-      div.textContent = num;
-      div.id = `tile-${i}`;
-      div.ondragstart = e => e.dataTransfer.setData("text/plain", div.id);
-      tileContainer.appendChild(div);
-    });
+    function renderTiles() {
+      tileContainer.innerHTML = '';
+      remaining.forEach((num, i) => {
+        const div = document.createElement("div");
+        div.className = "tile";
+        div.textContent = num;
+        div.id = `tile-${i}`;
+        tileContainer.appendChild(div);
+      });
+    }
 
-    for (let i = 0; i < 20; i++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      cell.ondragover = e => e.preventDefault();
-      cell.ondrop = e => {
-        const id = e.dataTransfer.getData("text/plain");
-        const tile = document.getElementById(id);
-        if (!cell.hasChildNodes()) {
-          cell.appendChild(tile);
-          updateScore();
-        }
-      };
-      board.appendChild(cell);
+    function drawNextTile() {
+      if (activeTile !== null || remaining.length === 0) return;
+      const idx = Math.floor(Math.random() * remaining.length);
+      activeTile = { index: idx, value: remaining[idx] };
+      const tileDiv = document.getElementById(`tile-${idx}`);
+      tileDiv.classList.add("highlight");
+      tileDiv.draggable = true;
+      tileDiv.ondragstart = e => e.dataTransfer.setData("text/plain", idx);
+    }
+
+    function initializeBoard() {
+      for (let i = 0; i < 20; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.ondragover = e => e.preventDefault();
+        cell.ondrop = e => {
+          if (!cell.hasChildNodes()) {
+            const idx = parseInt(e.dataTransfer.getData("text/plain"));
+            const tile = document.getElementById(`tile-${idx}`);
+            cell.textContent = tile.textContent;
+            remaining[idx] = null;
+            tile.textContent = "";
+            tile.className = "tile";
+            tile.draggable = false;
+            tile.ondragstart = null;
+            activeTile = null;
+            placedCount++;
+            if (placedCount === 20) {
+              updateScore();
+              submitBtn.disabled = false;
+            }
+          }
+        };
+        board.appendChild(cell);
+      }
     }
 
     function updateScore() {
@@ -119,6 +147,9 @@
         body: JSON.stringify({ name: name, tiles: tilesUsed, score: score })
       }).then(res => alert("기록 완료!"));
     }
+
+    renderTiles();
+    initializeBoard();
   </script>
 </body>
 </html>
