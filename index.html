@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v4</title>
+  <title>스트림스 웹앱 v6</title>
   <style>
     body {
       background-color: white;
@@ -35,10 +35,14 @@
     .cell {
       background-color: #f0f0f0;
     }
-    #jokerSelect {
+    #jokerSelect, #resetBtn {
       margin: 10px;
       font-size: 16px;
       padding: 5px;
+    }
+    #warning {
+      color: red;
+      font-weight: bold;
     }
     @keyframes glow {
       from { background-color: #fff; }
@@ -47,19 +51,29 @@
   </style>
 </head>
 <body>
-  <h1>스트림스 웹앱 v4</h1>
+  <h1>스트림스 웹앱 v6</h1>
+  <p style="max-width: 600px; margin: auto; text-align: left;">
+    스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
+    타일을 하나 뽑으면 반드시 20칸 보드에 배치를 해야 다음 타일을 뽑을 수 있습니다.<br>
+    타일은 1~10까지 1개, 11~19까지 2개, 20~30까지 1개, ☆ 1개로 구성되어 있습니다.<br>
+    [다음 타일 뽑기] 버튼을 눌러 1개씩 무작위로 타일을 뽑습니다.<br>
+    뽑힌 타일은 반짝이며 강조되고, 20칸 보드 중 원하는 위치에 배치할 수 있습니다.<br>
+    ☆은 조커이며, 마지막에 1~30까지의 원하는 숫자로 지정됩니다.<br>
+    20칸 보드를 모두 채우면 점수가 계산됩니다.
+  </p>
   <p>이름: <input type="text" id="player" /></p>
   <div class="tile-container" id="tileContainer"></div>
   <button onclick="drawNextTile()">다음 타일 뽑기</button>
+  <button onclick="location.reload()" id="resetBtn">처음으로</button>
+  <div id="warning"></div>
   <h3>20칸 보드</h3>
   <div class="board" id="board"></div>
   <div id="jokerArea" style="display:none;">
     <label for="jokerSelect">☆를 어떤 숫자로 간주하시겠습니까? </label>
-    <select id="jokerSelect">
-      ${Array.from({length:30}, (_,i)=>`<option value='${i+1}'>${i+1}</option>`).join('')}
-    </select>
+    <select id="jokerSelect"></select>
     <button onclick="confirmJoker()">확정</button>
   </div>
+  <p id="scoreBreakdown"></p>
   <p>점수: <span id="score">0</span></p>
   <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
 
@@ -82,9 +96,13 @@
     const submitBtn = document.getElementById("submitBtn");
     const jokerArea = document.getElementById("jokerArea");
     const jokerSelect = document.getElementById("jokerSelect");
+    const scoreBreakdown = document.getElementById("scoreBreakdown");
+    const warning = document.getElementById("warning");
+
     let remaining = [...tiles];
     let activeTile = null;
     let placedCount = 0;
+    let drawOrder = [];
 
     function renderTiles() {
       tileContainer.innerHTML = '';
@@ -98,9 +116,14 @@
     }
 
     function drawNextTile() {
-      if (activeTile !== null || remaining.length === 0) return;
+      if (activeTile !== null) {
+        warning.textContent = "타일을 반드시 배치해야 합니다.";
+        return;
+      }
+      warning.textContent = "";
       const idx = Math.floor(Math.random() * remaining.length);
       activeTile = { index: idx, value: remaining[idx] };
+      drawOrder.push(activeTile.value);
       const tileDiv = document.getElementById(`tile-${idx}`);
       tileDiv.classList.add("highlight");
       tileDiv.draggable = true;
@@ -123,6 +146,13 @@
             placedCount++;
             if (placedCount === 20) {
               if (Array.from(board.children).some(cell => cell.textContent === '*')) {
+                jokerSelect.innerHTML = '';
+                for (let i = 1; i <= 30; i++) {
+                  const opt = document.createElement("option");
+                  opt.value = i;
+                  opt.textContent = i;
+                  jokerSelect.appendChild(opt);
+                }
                 jokerArea.style.display = 'block';
               } else {
                 updateScore();
@@ -152,10 +182,13 @@
       });
       let totalScore = 0;
       let currentLength = 0;
+      let breakdown = [];
       for (let i = 0; i < nums.length; i++) {
         if (nums[i] === null) {
           if (currentLength > 0) {
-            totalScore += scoreTable[currentLength] || 0;
+            const s = scoreTable[currentLength] || 0;
+            breakdown.push(`${currentLength}칸(${s}점)`);
+            totalScore += s;
             currentLength = 0;
           }
           continue;
@@ -163,13 +196,18 @@
         if (currentLength === 0 || (i > 0 && nums[i - 1] !== null && nums[i] > nums[i - 1])) {
           currentLength++;
         } else {
-          totalScore += scoreTable[currentLength] || 0;
+          const s = scoreTable[currentLength] || 0;
+          breakdown.push(`${currentLength}칸(${s}점)`);
+          totalScore += s;
           currentLength = 1;
         }
       }
       if (currentLength > 0) {
-        totalScore += scoreTable[currentLength] || 0;
+        const s = scoreTable[currentLength] || 0;
+        breakdown.push(`${currentLength}칸(${s}점)`);
+        totalScore += s;
       }
+      scoreBreakdown.textContent = breakdown.join(" + ") + ` = 총 ${totalScore}점`;
       document.getElementById("score").textContent = totalScore;
     }
 
@@ -180,7 +218,7 @@
       if (!name) return alert("이름을 입력해주세요.");
       fetch("https://script.google.com/macros/s/AKfycbxESJ7DK8_QyDADd5271qYWLtb6_UD3Q7qs25zcadrfmqZHAAFlUF4tYYHQvlJWQcBSgQ/exec", {
         method: "POST",
-        body: JSON.stringify({ name: name, tiles: tilesUsed, score: score })
+        body: JSON.stringify({ name: name, tiles: tilesUsed, score: score, order: drawOrder })
       }).then(res => alert("기록 완료!"));
     }
 
