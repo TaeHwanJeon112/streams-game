@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v3</title>
+  <title>스트림스 웹앱 v4</title>
   <style>
     body {
       background-color: white;
@@ -35,6 +35,11 @@
     .cell {
       background-color: #f0f0f0;
     }
+    #jokerSelect {
+      margin: 10px;
+      font-size: 16px;
+      padding: 5px;
+    }
     @keyframes glow {
       from { background-color: #fff; }
       to { background-color: #ddd; }
@@ -42,12 +47,19 @@
   </style>
 </head>
 <body>
-  <h1>스트림스 웹앱 v3</h1>
+  <h1>스트림스 웹앱 v4</h1>
   <p>이름: <input type="text" id="player" /></p>
   <div class="tile-container" id="tileContainer"></div>
   <button onclick="drawNextTile()">다음 타일 뽑기</button>
   <h3>20칸 보드</h3>
   <div class="board" id="board"></div>
+  <div id="jokerArea" style="display:none;">
+    <label for="jokerSelect">☆를 어떤 숫자로 간주하시겠습니까? </label>
+    <select id="jokerSelect">
+      ${Array.from({length:30}, (_,i)=>`<option value='${i+1}'>${i+1}</option>`).join('')}
+    </select>
+    <button onclick="confirmJoker()">확정</button>
+  </div>
   <p>점수: <span id="score">0</span></p>
   <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
 
@@ -68,6 +80,8 @@
     const tileContainer = document.getElementById("tileContainer");
     const board = document.getElementById("board");
     const submitBtn = document.getElementById("submitBtn");
+    const jokerArea = document.getElementById("jokerArea");
+    const jokerSelect = document.getElementById("jokerSelect");
     let remaining = [...tiles];
     let activeTile = null;
     let placedCount = 0;
@@ -104,12 +118,16 @@
             const tile = document.getElementById(`tile-${idx}`);
             cell.textContent = tile.textContent;
             remaining.splice(idx, 1);
-            renderTiles(); // re-render without removed tile
+            renderTiles();
             activeTile = null;
             placedCount++;
             if (placedCount === 20) {
-              updateScore();
-              submitBtn.disabled = false;
+              if (Array.from(board.children).some(cell => cell.textContent === '*')) {
+                jokerArea.style.display = 'block';
+              } else {
+                updateScore();
+                submitBtn.disabled = false;
+              }
             }
           }
         };
@@ -117,10 +135,20 @@
       }
     }
 
+    function confirmJoker() {
+      const selected = parseInt(jokerSelect.value);
+      Array.from(board.children).forEach(cell => {
+        if (cell.textContent === '*') cell.textContent = selected;
+      });
+      jokerArea.style.display = 'none';
+      updateScore();
+      submitBtn.disabled = false;
+    }
+
     function updateScore() {
       const nums = Array.from(board.children).map(cell => {
         const val = cell.textContent;
-        return val && val !== '*' ? parseInt(val) : null;
+        return val ? parseInt(val) : null;
       });
       let totalScore = 0;
       let currentLength = 0;
