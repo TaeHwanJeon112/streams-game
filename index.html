@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v7</title>
+  <title>스트림스 웹앱 v8</title>
   <style>
     body {
       background-color: white;
@@ -52,6 +52,9 @@
       padding: 4px 8px;
       border: 1px solid #aaa;
     }
+    .score-table .shaded {
+      background-color: #f2f2f2;
+    }
     @keyframes glow {
       from { background-color: #fff; }
       to { background-color: #ddd; }
@@ -59,187 +62,13 @@
   </style>
 </head>
 <body>
-  <h1>스트림스 웹앱 v7</h1>
-  <p style="max-width: 600px; margin: auto; text-align: left;">
-    스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
-    타일을 하나 뽑으면 반드시 20칸 보드에 배치를 해야 다음 타일을 뽑을 수 있습니다.<br>
-    타일은 1~10까지 1개, 11~19까지 2개, 20~30까지 1개, ☆ 1개로 구성되어 있습니다.<br>
-    [다음 타일 뽑기] 버튼을 눌러 1개씩 무작위로 타일을 뽑습니다.<br>
-    뽑힌 타일은 반짝이며 강조되고, 20칸 보드 중 원하는 위치에 배치할 수 있습니다.<br>
-    ☆은 조커이며, 마지막에 1~30까지의 원하는 숫자로 지정됩니다.<br>
-    20칸 보드를 모두 채우면 점수가 계산됩니다.
-  </p>
+  <h1>스트림스 웹앱 v8</h1>
   <h3>🧮 칸 수별 점수표</h3>
   <table class="score-table">
-    <tr><td>1칸</td><td>0점</td><td>2칸</td><td>1점</td><td>3칸</td><td>3점</td><td>4칸</td><td>5점</td><td>5칸</td><td>7점</td></tr>
-    <tr><td>6칸</td><td>9점</td><td>7칸</td><td>11점</td><td>8칸</td><td>15점</td><td>9칸</td><td>20점</td><td>10칸</td><td>25점</td></tr>
-    <tr><td>11칸</td><td>30점</td><td>12칸</td><td>35점</td><td>13칸</td><td>40점</td><td>14칸</td><td>50점</td><td>15칸</td><td>60점</td></tr>
-    <tr><td>16칸</td><td>70점</td><td>17칸</td><td>85점</td><td>18칸</td><td>100점</td><td>19칸</td><td>150점</td><td>20칸</td><td>300점</td></tr>
+    <tr><td class="shaded">1칸</td><td>0점</td><td class="shaded">2칸</td><td>1점</td><td class="shaded">3칸</td><td>3점</td><td class="shaded">4칸</td><td>5점</td><td class="shaded">5칸</td><td>7점</td></tr>
+    <tr><td class="shaded">6칸</td><td>9점</td><td class="shaded">7칸</td><td>11점</td><td class="shaded">8칸</td><td>15점</td><td class="shaded">9칸</td><td>20점</td><td class="shaded">10칸</td><td>25점</td></tr>
+    <tr><td class="shaded">11칸</td><td>30점</td><td class="shaded">12칸</td><td>35점</td><td class="shaded">13칸</td><td>40점</td><td class="shaded">14칸</td><td>50점</td><td class="shaded">15칸</td><td>60점</td></tr>
+    <tr><td class="shaded">16칸</td><td>70점</td><td class="shaded">17칸</td><td>85점</td><td class="shaded">18칸</td><td>100점</td><td class="shaded">19칸</td><td>150점</td><td class="shaded">20칸</td><td>300점</td></tr>
   </table>
-
-  <p>이름: <input type="text" id="player" /></p>
-  <div class="tile-container" id="tileContainer"></div>
-  <button onclick="drawNextTile()">다음 타일 뽑기</button>
-  <button onclick="location.reload()" id="resetBtn">처음으로</button>
-  <div id="warning"></div>
-  <h3>20칸 보드</h3>
-  <div class="board" id="board"></div>
-  <div id="jokerArea" style="display:none;">
-    <label for="jokerSelect">☆를 어떤 숫자로 간주하시겠습니까? </label>
-    <select id="jokerSelect"></select>
-    <button onclick="confirmJoker()">확정</button>
-  </div>
-  <p id="scoreBreakdown"></p>
-  <p>점수: <span id="score">0</span></p>
-  <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
-
-  <script>
-    const scoreTable = {
-      1: 0, 2: 1, 3: 3, 4: 5, 5: 7, 6: 9, 7: 11, 8: 15, 9: 20, 10: 25,
-      11: 30, 12: 35, 13: 40, 14: 50, 15: 60, 16: 70, 17: 85, 18: 100, 19: 150, 20: 300
-    };
-
-    let tiles = [];
-    for (let i = 1; i <= 30; i++) {
-      const count = (i >= 11 && i <= 19) ? 2 : 1;
-      for (let j = 0; j < count; j++) tiles.push(i);
-    }
-    tiles.push('*');
-    tiles.sort((a, b) => (a === '*' ? 1 : b === '*' ? -1 : a - b));
-
-    const tileContainer = document.getElementById("tileContainer");
-    const board = document.getElementById("board");
-    const submitBtn = document.getElementById("submitBtn");
-    const jokerArea = document.getElementById("jokerArea");
-    const jokerSelect = document.getElementById("jokerSelect");
-    const scoreBreakdown = document.getElementById("scoreBreakdown");
-    const warning = document.getElementById("warning");
-
-    let remaining = [...tiles];
-    let activeTile = null;
-    let placedCount = 0;
-    let drawOrder = [];
-
-    function renderTiles() {
-      tileContainer.innerHTML = '';
-      remaining.forEach((num, i) => {
-        const div = document.createElement("div");
-        div.className = "tile";
-        div.textContent = num;
-        div.id = `tile-${i}`;
-        tileContainer.appendChild(div);
-      });
-    }
-
-    function drawNextTile() {
-      if (activeTile !== null) {
-        warning.textContent = "타일을 반드시 배치해야 합니다.";
-        return;
-      }
-      warning.textContent = "";
-      const idx = Math.floor(Math.random() * remaining.length);
-      activeTile = { index: idx, value: remaining[idx] };
-      drawOrder.push(activeTile.value);
-      const tileDiv = document.getElementById(`tile-${idx}`);
-      tileDiv.classList.add("highlight");
-      tileDiv.draggable = true;
-      tileDiv.ondragstart = e => e.dataTransfer.setData("text/plain", idx);
-    }
-
-    function initializeBoard() {
-      for (let i = 0; i < 20; i++) {
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        cell.ondragover = e => e.preventDefault();
-        cell.ondrop = e => {
-          if (!cell.hasChildNodes() && activeTile !== null) {
-            const idx = activeTile.index;
-            const tile = document.getElementById(`tile-${idx}`);
-            cell.textContent = tile.textContent;
-            remaining.splice(idx, 1);
-            renderTiles();
-            activeTile = null;
-            placedCount++;
-            if (placedCount === 20) {
-              if (Array.from(board.children).some(cell => cell.textContent === '*')) {
-                jokerSelect.innerHTML = '';
-                for (let i = 1; i <= 30; i++) {
-                  const opt = document.createElement("option");
-                  opt.value = i;
-                  opt.textContent = i;
-                  jokerSelect.appendChild(opt);
-                }
-                jokerArea.style.display = 'block';
-              } else {
-                updateScore();
-                submitBtn.disabled = false;
-              }
-            }
-          }
-        };
-        board.appendChild(cell);
-      }
-    }
-
-    function confirmJoker() {
-      const selected = parseInt(jokerSelect.value);
-      Array.from(board.children).forEach(cell => {
-        if (cell.textContent === '*') cell.textContent = selected;
-      });
-      jokerArea.style.display = 'none';
-      updateScore();
-      submitBtn.disabled = false;
-    }
-
-    function updateScore() {
-      const nums = Array.from(board.children).map(cell => {
-        const val = cell.textContent;
-        return val ? parseInt(val) : null;
-      });
-      let totalScore = 0;
-      let currentLength = 0;
-      let breakdown = [];
-      for (let i = 0; i < nums.length; i++) {
-        if (nums[i] === null) {
-          if (currentLength > 0) {
-            const s = scoreTable[currentLength] || 0;
-            breakdown.push(`${currentLength}칸(${s}점)`);
-            totalScore += s;
-            currentLength = 0;
-          }
-          continue;
-        }
-        if (currentLength === 0 || (i > 0 && nums[i - 1] !== null && nums[i] >= nums[i - 1])) {
-          currentLength++;
-        } else {
-          const s = scoreTable[currentLength] || 0;
-          breakdown.push(`${currentLength}칸(${s}점)`);
-          totalScore += s;
-          currentLength = 1;
-        }
-      }
-      if (currentLength > 0) {
-        const s = scoreTable[currentLength] || 0;
-        breakdown.push(`${currentLength}칸(${s}점)`);
-        totalScore += s;
-      }
-      scoreBreakdown.textContent = breakdown.join(" + ") + ` = 총 ${totalScore}점`;
-      document.getElementById("score").textContent = totalScore;
-    }
-
-    function submitResult() {
-      const name = document.getElementById("player").value;
-      const tilesUsed = Array.from(board.children).map(cell => cell.textContent || "");
-      const score = document.getElementById("score").textContent;
-      if (!name) return alert("이름을 입력해주세요.");
-      fetch("https://script.google.com/macros/s/AKfycbxESJ7DK8_QyDADd5271qYWLtb6_UD3Q7qs25zcadrfmqZHAAFlUF4tYYHQvlJWQcBSgQ/exec", {
-        method: "POST",
-        body: JSON.stringify({ name: name, tiles: tilesUsed, score: score, order: drawOrder })
-      }).then(res => alert("기록 완료!"));
-    }
-
-    renderTiles();
-    initializeBoard();
-  </script>
 </body>
 </html>
