@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v6</title>
+  <title>스트림스 웹앱 v7</title>
   <style>
     body {
       background-color: white;
@@ -44,6 +44,14 @@
       color: red;
       font-weight: bold;
     }
+    table.score-table {
+      margin: auto;
+      border-collapse: collapse;
+    }
+    .score-table td {
+      padding: 4px 8px;
+      border: 1px solid #aaa;
+    }
     @keyframes glow {
       from { background-color: #fff; }
       to { background-color: #ddd; }
@@ -51,7 +59,7 @@
   </style>
 </head>
 <body>
-  <h1>스트림스 웹앱 v6</h1>
+  <h1>스트림스 웹앱 v7</h1>
   <p style="max-width: 600px; margin: auto; text-align: left;">
     스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
     타일을 하나 뽑으면 반드시 20칸 보드에 배치를 해야 다음 타일을 뽑을 수 있습니다.<br>
@@ -61,6 +69,14 @@
     ☆은 조커이며, 마지막에 1~30까지의 원하는 숫자로 지정됩니다.<br>
     20칸 보드를 모두 채우면 점수가 계산됩니다.
   </p>
+  <h3>🧮 칸 수별 점수표</h3>
+  <table class="score-table">
+    <tr><td>1칸</td><td>0점</td><td>2칸</td><td>1점</td><td>3칸</td><td>3점</td><td>4칸</td><td>5점</td><td>5칸</td><td>7점</td></tr>
+    <tr><td>6칸</td><td>9점</td><td>7칸</td><td>11점</td><td>8칸</td><td>15점</td><td>9칸</td><td>20점</td><td>10칸</td><td>25점</td></tr>
+    <tr><td>11칸</td><td>30점</td><td>12칸</td><td>35점</td><td>13칸</td><td>40점</td><td>14칸</td><td>50점</td><td>15칸</td><td>60점</td></tr>
+    <tr><td>16칸</td><td>70점</td><td>17칸</td><td>85점</td><td>18칸</td><td>100점</td><td>19칸</td><td>150점</td><td>20칸</td><td>300점</td></tr>
+  </table>
+
   <p>이름: <input type="text" id="player" /></p>
   <div class="tile-container" id="tileContainer"></div>
   <button onclick="drawNextTile()">다음 타일 뽑기</button>
@@ -193,7 +209,7 @@
           }
           continue;
         }
-        if (currentLength === 0 || (i > 0 && nums[i - 1] !== null && nums[i] > nums[i - 1])) {
+        if (currentLength === 0 || (i > 0 && nums[i - 1] !== null && nums[i] >= nums[i - 1])) {
           currentLength++;
         } else {
           const s = scoreTable[currentLength] || 0;
