@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v2</title>
+  <title>스트림스 웹앱 v3</title>
   <style>
     body {
       background-color: white;
@@ -42,7 +42,7 @@
   </style>
 </head>
 <body>
-  <h1>스트림스 웹앱 v2</h1>
+  <h1>스트림스 웹앱 v3</h1>
   <p>이름: <input type="text" id="player" /></p>
   <div class="tile-container" id="tileContainer"></div>
   <button onclick="drawNextTile()">다음 타일 뽑기</button>
@@ -99,15 +99,12 @@
         cell.className = "cell";
         cell.ondragover = e => e.preventDefault();
         cell.ondrop = e => {
-          if (!cell.hasChildNodes()) {
-            const idx = parseInt(e.dataTransfer.getData("text/plain"));
+          if (!cell.hasChildNodes() && activeTile !== null) {
+            const idx = activeTile.index;
             const tile = document.getElementById(`tile-${idx}`);
             cell.textContent = tile.textContent;
-            remaining[idx] = null;
-            tile.textContent = "";
-            tile.className = "tile";
-            tile.draggable = false;
-            tile.ondragstart = null;
+            remaining.splice(idx, 1);
+            renderTiles(); // re-render without removed tile
             activeTile = null;
             placedCount++;
             if (placedCount === 20) {
@@ -125,16 +122,27 @@
         const val = cell.textContent;
         return val && val !== '*' ? parseInt(val) : null;
       });
-      let maxSeq = 0, curr = 0;
+      let totalScore = 0;
+      let currentLength = 0;
       for (let i = 0; i < nums.length; i++) {
-        if (i === 0 || nums[i] === null || (nums[i - 1] !== null && nums[i] <= nums[i - 1])) {
-          curr = nums[i] !== null ? 1 : 0;
-        } else {
-          curr++;
+        if (nums[i] === null) {
+          if (currentLength > 0) {
+            totalScore += scoreTable[currentLength] || 0;
+            currentLength = 0;
+          }
+          continue;
         }
-        maxSeq = Math.max(maxSeq, curr);
+        if (currentLength === 0 || (i > 0 && nums[i - 1] !== null && nums[i] > nums[i - 1])) {
+          currentLength++;
+        } else {
+          totalScore += scoreTable[currentLength] || 0;
+          currentLength = 1;
+        }
       }
-      document.getElementById("score").textContent = scoreTable[maxSeq] || 0;
+      if (currentLength > 0) {
+        totalScore += scoreTable[currentLength] || 0;
+      }
+      document.getElementById("score").textContent = totalScore;
     }
 
     function submitResult() {
