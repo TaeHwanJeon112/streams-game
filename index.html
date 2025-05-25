@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v11</title>
+  <title>스트림스 웹앱 v10 - 최종 완성</title>
   <style>
     body {
       background-color: white;
@@ -170,7 +170,7 @@
 </head>
 <body>
   <div class="container"> <!-- 전체 내용을 감싸는 div 추가 -->
-      <h1>스트림스 웹앱 v11</h1>
+      <h1>스트림스 웹앱 v10</h1>
       <p> <!-- 설명글은 원래대로 max-width 유지 -->
         스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
         타일을 연속하여 오름차순으로 배치할수록 높은 점수를 받습니다.<br>
@@ -214,10 +214,9 @@
 
       <p id="scoreBreakdown"></p>
       <p>점수: <span id="score">0</span></p>
+<p id="saveStatus" style="color: green; font-weight: bold;"></p>
 
-      <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
-
-  </div> <!-- .container 끝 -->
+      </div> <!-- .container 끝 -->
 
 
   <script>
@@ -320,7 +319,6 @@
 
       // activeTile 정보 업데이트 (값만 저장)
       activeTile = { value: drawnValue };
-      drawOrder.push(drawnValue);
 
       // 남은 타일 목록을 다시 그림 (뽑힌 타일이 사라짐)
       renderRemainingTiles();
@@ -479,7 +477,6 @@
 
         // 결과 저장 버튼 활성화
         submitBtn.disabled = false;
-        submitResult();
     }
 
 
@@ -516,30 +513,6 @@
     });
 
     // '처음으로' 버튼 기능은 location.reload()로 이미 구현되어 있음
-  
-let alreadySaved = false;
-function submitResult() {
-    if (alreadySaved) return;
-    const name = document.getElementById("player").value.trim() || "익명";
-    const score = document.getElementById("score").textContent;
-    const tiles = Array.from(board.children).map(cell => cell.textContent || "");
-    const order = drawOrder.map(val => val === '*' ? '☆' : val);
-    fetch("https://script.google.com/macros/s/AKfycbypUdzF7KhS6Ua-VIXWEYptsmZI223OJwAz-M6C2PE17kb9JX67CHfkw0Ctq8XMjaBYDA/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, score, tiles, order })
-    }).then(res => {
-        if (res.ok) {
-            console.log("기록 완료");
-            alreadySaved = true;
-        } else {
-            console.error("서버 오류로 기록 실패");
-        }
-    }).catch(err => {
-        console.error("네트워크 오류로 기록 실패:", err);
-    });
-}
-
-</script>
+  </script>
 </body>
 </html>
