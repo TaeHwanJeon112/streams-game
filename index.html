@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v11</title>
+  <title>스트림스 웹앱 v10 - 최종 완성</title>
   <style>
     body {
       background-color: white;
@@ -170,7 +170,7 @@
 </head>
 <body>
   <div class="container"> <!-- 전체 내용을 감싸는 div 추가 -->
-      <h1>스트림스 웹앱 v11</h1>
+      <h1>스트림스 웹앱 v10</h1>
       <p> <!-- 설명글은 원래대로 max-width 유지 -->
         스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
         타일을 연속하여 오름차순으로 배치할수록 높은 점수를 받습니다.<br>
@@ -319,6 +319,8 @@
 
       // activeTile 정보 업데이트 (값만 저장)
       activeTile = { value: drawnValue };
+      drawOrder.push(drawnValue);
+      drawOrder.push(drawnValue);
 
       // 남은 타일 목록을 다시 그림 (뽑힌 타일이 사라짐)
       renderRemainingTiles();
@@ -475,6 +477,7 @@
         document.getElementById('score').textContent = totalScore;
         scoreBreakdown.textContent = breakdown;
     submitResult();
+    submitResult();
 
         // 결과 저장 버튼 활성화
         submitBtn.disabled = false;
@@ -483,6 +486,8 @@
 
     // 결과 저장 (더미 함수 - 서버 저장 기능 없음)
     
+let alreadySaved = false;
+
 let alreadySaved = false;
 function submitResult() {
     if (alreadySaved) return;
@@ -493,7 +498,7 @@ function submitResult() {
     const url = "https://script.google.com/macros/s/AKfycbyclx-2E47E-C1UWgbeJf7YT1ri_9f2mAF_e3wpOquUR4TKgjhemDjWu2akj11x4OwviA/exec?name=" + encodeURIComponent(name) +
                 "&score=" + encodeURIComponent(score) +
                 "&tiles=" + encodeURIComponent(tiles) +
-                "&drawOrder=" + encodeURIComponent(order);  // ← 이름 변경
+                "&drawOrder=" + encodeURIComponent(order);
 
     fetch(url)
         .then(res => {
@@ -501,6 +506,14 @@ function submitResult() {
                 document.getElementById("saveStatus").textContent = "결과가 저장되었습니다.";
                 alreadySaved = true;
             } else {
+                console.error("서버 오류로 기록 실패");
+            }
+        })
+        .catch(err => {
+            console.error("네트워크 오류로 기록 실패:", err);
+        });
+}
+ else {
                 console.error("서버 오류로 기록 실패");
             }
         })
