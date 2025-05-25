@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>스트림스 웹앱 v10 - 최종 완성</title>
+  <style>
+    body {
+      background-color: white;
+      color: black;
+      font-family: sans-serif;
+      text-align: center;
+      /* 화면 너비가 좁을 경우 가로 스크롤바가 생기도록 설정 */
+      overflow-x: auto;
+      padding-bottom: 50px; /* 스크롤 시 아래 버튼 가려지지 않게 여유 공간 추가 */
+      margin: 0; /* body 기본 마진 제거 */
+    }
+    .container { /* 전체 내용을 감싸서 중앙 정렬 */
+        width: fit-content; /* 내용 너비에 맞게 조정 */
+        margin: 0 auto; /* 중앙 정렬 */
+        padding: 20px; /* 컨테이너 안쪽 여백 */
+    }
+     /* container 안에 있는 요소들의 기본 중앙 정렬 및 너비 설정 */
+    h1, h3, p, table, button, #jokerArea {
+         margin-left: auto;
+         margin-right: auto;
+         width: fit-content; /* 내용 너비만큼만 영역 차지 */
+    }
+     /* 특정 요소들은 예외 처리 */
+     p:not(:has(label)) { /* 이름 입력 p 태그 제외한 다른 p (설명글) */
+         text-align: left; /* 설명글만 왼쪽 정렬 유지 */
+         max-width: 600px; /* 설명글 너비 제한 */
+         margin-left: auto;
+         margin-right: auto;
+     }
+
+
+    .tile-container { /* 남은 타일 목록 */
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px; /* 위 마진 */
+      margin-bottom: 10px; /* 아래 마진 */
+      width: 250px; /* 기존 보드 너비에 맞춤 */
+      min-height: 48px; /* 타일 최소 높이 확보 (한 줄만 남았을 때도 영역 유지) */
+      border: 1px dashed #eee; /* 영역 표시 (선택 사항) */
+      padding: 5px; /* 안쪽 여백 */
+      box-sizing: border-box; /* border 포함 크기 계산 */
+    }
+    #drawnTileArea { /* 뽑힌 타일 하나만 표시되는 영역 */
+        min-height: 48px; /* 타일 높이 + 마진 고려 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px; /* 위 마진 */
+        margin-bottom: 10px; /* 아래 마진 */
+        width: 250px; /* 기존 보드 너비에 맞춤 */
+        border: 1px dashed #ccc; /* 영역 표시 */
+        box-sizing: border-box; /* border 포함 크기 계산 */
+    }
+    .board { /* 게임 보드 (20칸) - 일렬로! */
+      display: flex;
+      /* flex-wrap: wrap; /* 줄 바꿈 비활성화! */
+      justify-content: flex-start; /* 칸들을 왼쪽부터 채우도록 */
+      margin-top: 20px; /* 위 마진 */
+      margin-bottom: 20px; /* 아래 마진 */
+      /* 20칸 (40px*20 = 800px) + 셀 마진 (좌우 각 2px * 20칸 = 80px) = 880px 필요 */
+      width: 880px; /* 셀 너비와 마진에 딱 맞게 */
+      border: 1px solid #555; /* 보드 전체 테두리 (선택 사항) */
+      padding: 2px; /* 보드 전체 테두리와 셀 사이 여백 */
+      box-sizing: border-box; /* border, padding 포함 크기 계산 */
+    }
+    .tile, .cell {
+      width: 40px;
+      height: 40px;
+      border: 1px solid black;
+      margin: 2px; /* 전체 마진 사용 */
+      line-height: 40px;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center; /* 텍스트 중앙 정렬 */
+      box-sizing: border-box; /* border 포함 크기 계산 */
+      flex-shrink: 0; /* 셀 크기 고정 - 중요! 일렬로 늘어설 때 찌그러지지 않게 함 */
+    }
+    .tile {
+      background-color: white;
+      cursor: default; /* 남은 타일은 클릭 불가 */
+    }
+     #drawnTileArea .tile { /* drawnTileArea 안의 타일 (뽑힌 타일) */
+         cursor: default; /* 뽑힌 타일은 클릭 불가 (보드에 클릭하여 배치) */
+         margin: 0; /* drawnTileArea의 flexbox 중앙 정렬을 위해 마진 제거 */
+     }
+
+    .highlight {
+      animation: glow 1s infinite alternate;
+      border-color: blue; /* 뽑힌 타일 테두리 색 변경 */
+    }
+    .cell {
+      background-color: #f0f0f0; /* 기본 셀 배경색 */
+      cursor: pointer; /* 빈 셀 커서 */
+    }
+    /* .cell.placed {
+         background-color: rgba(0, 0, 0, 0.1); /* 그룹 색 위에 어둡게 덧씌우는 느낌 (선택 사항) - 이번에는 그룹색이 특정 셀에만 들어가므로 placed 색을 기본색 위로 올림 */
+    /* } */
+     .cell.placed {
+         /* 타일 배치 후 배경색. 그룹 색 위에 올 수도 있으므로 적절한 색/투명도 선택 */
+         /* 배경색 구분이 더 중요하면 placed 색은 빼는 것도 방법 */
+         /* 여기서는 일단 기본 배경색 위로 올라오도록 놔둠. 그룹색 위에 오면 덮어씀 */
+     }
+
+
+    /* 5칸 구분을 배경색으로 표시 - 딱 1번, 6번, 11번, 16번 셀만 */
+    .board .cell:nth-child(1),
+    .board .cell:nth-child(6),
+    .board .cell:nth-child(11),
+    .board .cell:nth-child(16) {
+        background-color: #B0E0E6; /* 파스텔 톤 연한 파랑 (PowderBlue) */
+        /* 아니면 좀 더 밝게: #D0F0FF; */
+    }
+
+
+    #player { /* 플레이어 입력칸 */
+        font-size: 16px;
+        padding: 5px;
+        margin-bottom: 10px; /* 아래쪽 여백 추가 */
+        display: inline-block; /* p 태그 안에서 다른 요소와 함께 한 줄에 오도록 */
+        width: 150px; /* 적당한 너비 지정 */
+        box-sizing: border-box; /* padding 포함 크기 계산 */
+    }
+    p label { /* '이름:' 라벨 */
+        display: inline-block; /* input과 함께 한 줄에 오도록 */
+        margin-right: 5px;
+    }
+    p:has(label) { /* 이름 입력 있는 p 태그 */
+        text-align: center; /* 이름을 중앙 정렬 */
+         max-width: none; /* 중앙 정렬을 위해 max-width 제거 */
+    }
+
+
+    #jokerSelect, #resetBtn, button {
+      margin: 10px 5px; /* 버튼 간격 조정 */
+      font-size: 16px;
+      padding: 8px 15px; /* 버튼 패딩 조정 */
+      cursor: pointer;
+    }
+    #warning {
+      color: red;
+      font-weight: bold;
+      min-height: 1.2em; /* 경고 메시지 영역 확보 */
+      margin-bottom: 10px;
+    }
+    table.score-table {
+      margin: 20px auto; /* 위아래 간격 및 중앙 정렬 */
+      border-collapse: collapse;
+      font-size: 14px; /* 점수표 글씨 크기 줄임 */
+      width: fit-content; /* 내용 너비에 맞게 */
+    }
+    .score-table td {
+      padding: 4px 8px;
+      border: 1px solid #aaa;
+      text-align: center; /* 점수표 셀 내용 중앙 정렬 */
+    }
+    .shaded {
+      background-color: #f2f2f2;
+    }
+    @keyframes glow {
+      from { background-color: #fff; }
+      to { background-color: #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container"> <!-- 전체 내용을 감싸는 div 추가 -->
+      <h1>스트림스 웹앱 v10</h1>
+      <p> <!-- 설명글은 원래대로 max-width 유지 -->
+        스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
+        타일을 연속하여 오름차순으로 배치할수록 높은 점수를 받습니다.<br>
+        숫자가 같은 타일은 오름차순으로 인정됩니다.<br>
+        타일을 하나 뽑으면 반드시 20칸 보드에 배치를 해야 다음 타일을 뽑을 수 있습니다.<br>
+        타일은 1~10까지 1개, 11~19까지 2개, 20~30까지 1개, ☆ 1개로 구성되어 있습니다.<br>
+        [다음 타일 뽑기] 버튼을 눌러 1개씩 무작위로 타일을 뽑습니다.<br>
+        뽑힌 타일은 반짝이며 강조되고, 20칸 보드 중 원하는 빈 위치에 클릭하여 배치할 수 있습니다.<br>
+        ☆은 조커이며, 마지막에 1~30까지의 원하는 숫자로 지정됩니다.<br>
+        20칸 보드를 모두 채우면 점수가 계산됩니다.
+      </p>
+      <h3>🧮 오름차순 배치 칸 수별 점수표</h3>
+      <table class="score-table">
+        <tr><td class="shaded">1칸</td><td>0점</td><td class="shaded">2칸</td><td>1점</td><td class="shaded">3칸</td><td>3점</td><td class="shaded">4칸</td><td>5점</td><td class="shaded">5칸</td><td>7점</td></tr>
+        <tr><td class="shaded">6칸</td><td>9점</td><td class="shaded">7칸</td><td>11점</td><td class="shaded">8칸</td><td>15점</td><td class="shaded">9칸</td><td>20점</td><td class="shaded">10칸</td><td>25점</td></tr>
+        <tr><td class="shaded">11칸</td><td>30점</td><td>12칸</td><td>35점</td><td class="shaded">13칸</td><td>40점</td><td class="shaded">14칸</td><td>50점</td><td class="shaded">15칸</td><td>60점</td></tr>
+        <tr><td class="shaded">16칸</td><td>70점</td><td class="shaded">17칸</td><td>85점</td><td class="shaded">18칸</td><td>100점</td><td class="shaded">19칸</td><td>150점</td><td class="shaded">20칸</td><td>300점</td></tr>
+      </table>
+
+      <p><label for="player">이름:</label> <input type="text" id="player" /></p>
+
+      <h3>남은 타일</h3>
+      <div class="tile-container" id="tileContainer"></div>
+
+      <h3>뽑은 타일 (보드에 배치하세요)</h3>
+      <div id="drawnTileArea"></div> <!-- 뽑은 타일이 여기 표시됨 -->
+
+
+      <button onclick="drawNextTile()">다음 타일 뽑기</button>
+      <button onclick="location.reload()" id="resetBtn">처음으로</button>
+
+      <div id="warning"></div>
+      <h3>20칸 보드</h3>
+      <div class="board" id="board"></div>
+
+      <div id="jokerArea" style="display:none;">
+        <label for="jokerSelect">☆를 어떤 숫자로 간주하시겠습니까? </label>
+        <select id="jokerSelect"></select>
+        <button onclick="confirmJoker()">확정</button>
+      </div>
+
+      <p id="scoreBreakdown"></p>
+      <p>점수: <span id="score">0</span></p>
+
+      <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
+
+  </div> <!-- .container 끝 -->
+
+
+  <script>
+    const scoreTable = {
+      1: 0, 2: 1, 3: 3, 4: 5, 5: 7, 6: 9, 7: 11, 8: 15, 9: 20, 10: 25,
+      11: 30, 12: 35, 13: 40, 14: 50, 15: 60, 16: 70, 17: 85, 18: 100, 19: 150, 20: 300
+    };
+
+    // 전체 타일 목록 (1-10: 1개, 11-19: 2개, 20-30: 1개, *: 1개)
+    let allTiles = [];
+    for (let i = 1; i <= 30; i++) {
+      const count = (i >= 11 && i <= 19) ? 2 : 1;
+      for (let j = 0; j < count; j++) allTiles.push(i);
+    }
+    allTiles.push('*'); // 조커
+
+    const tileContainer = document.getElementById("tileContainer"); // 남은 타일들
+    const drawnTileArea = document.getElementById("drawnTileArea"); // 뽑힌 타일 하나
+    const board = document.getElementById("board");
+    const submitBtn = document.getElementById("submitBtn");
+    const jokerArea = document.getElementById("jokerArea");
+    const jokerSelect = document.getElementById("jokerSelect");
+    const scoreBreakdown = document.getElementById("scoreBreakdown");
+    const warning = document.getElementById("warning");
+    const drawButton = document.querySelector('button'); // '다음 타일 뽑기' 버튼
+
+    let remainingTiles = [...allTiles]; // 게임에 사용할 남은 타일 목록 (초기에는 전체 타일)
+    let activeTile = null; // 현재 뽑아서 대기 중인 타일 { value: number | '*' } - 요소는 drawnTileArea에 있음
+    let placedCount = 0; // 보드에 배치된 타일 수
+    let drawOrder = []; // 타일이 뽑힌 순서 (결과 저장용)
+
+    // 보드를 초기화하고 셀에 이벤트 리스너 추가 (5칸 구분은 CSS에서 배경색으로 처리)
+    function renderBoard() {
+        board.innerHTML = ''; // 기존 보드 내용을 비움
+        for (let i = 0; i < 20; i++) {
+            const div = document.createElement("div");
+            div.className = "cell";
+            div.dataset.index = i; // 셀의 인덱스 저장 (0부터 19)
+            div.addEventListener('click', handleCellClick); // 클릭 이벤트 리스너 추가
+            board.appendChild(div);
+        }
+    }
+
+    // 남은 타일들을 화면 (tileContainer)에 표시
+    function renderRemainingTiles() {
+        tileContainer.innerHTML = ''; // 기존 타일 목록 비움
+        // 남은 타일을 무작위로 섞어서 보여주는 것이 실제 게임과 더 유사할 수 있음.
+        // 여기서는 간단히 남은 목록 그대로 보여줌. (뽑기 전 섞지 않음)
+        remainingTiles.forEach((num) => {
+            const div = document.createElement("div");
+            div.className = "tile";
+            div.textContent = num === '*' ? '☆' : num; // 조커는 ☆으로 표시
+            // 남은 타일은 클릭해도 아무 일 없음 (activeTileArea에 있는 타일만 배치 가능)
+            tileContainer.appendChild(div);
+        });
+    }
+
+
+    // '다음 타일 뽑기' 버튼 클릭 시 실행
+    function drawNextTile() {
+      // 이미 뽑힌 타일이 activeTileArea에 있는데 배치하지 않았다면 경고
+      if (activeTile !== null) {
+        warning.textContent = "뽑은 타일을 먼저 보드에 배치해야 합니다.";
+        return;
+      }
+      // 보드가 이미 다 찼다면 경고 (발생하면 안 됨)
+       if (placedCount >= 20) {
+           warning.textContent = "보드가 다 채워졌습니다. 점수 계산을 확인하세요.";
+           drawButton.disabled = true; // 혹시 모르니 다시 비활성화
+           return;
+       }
+      // 남은 타일이 0개인데 아직 보드가 다 안 찼다면 오류 (발생하면 안 됨)
+      if (remainingTiles.length === 0 && placedCount < 20) {
+           warning.textContent = "오류: 게임 진행에 필요한 타일이 부족합니다.";
+           drawButton.disabled = true;
+           return;
+      }
+
+      warning.textContent = ""; // 경고 메시지 초기화
+
+      // 남은 타일 중 무작위로 하나의 '인덱스'를 선택
+      const idxToDraw = Math.floor(Math.random() * remainingTiles.length);
+      const drawnValue = remainingTiles[idxToDraw];
+
+      // 실제 타일 요소를 타일 컨테이너에서 찾음 (idxToDraw 번째 요소)
+      // renderRemainingTiles 함수가 remainingTiles 순서대로 타일 요소를 만들기 때문에 이 가정이 맞음.
+      const drawnTileElement = tileContainer.children[idxToDraw];
+      if (!drawnTileElement) {
+           console.error("Drawn tile element not found at index", idxToDraw, "Remaining:", remainingTiles);
+           warning.textContent = "오류: 뽑은 타일 요소를 찾을 수 없습니다."; // 사용자에게도 오류 알림
+          return;
+      }
+
+      // activeTileArea에 뽑은 타일 요소를 추가하고 강조
+      drawnTileArea.appendChild(drawnTileElement); // DOM 요소를 이동시킴
+      drawnTileElement.classList.add('highlight');
+
+      // remainingTiles 배열에서 해당 값을 제거 (뽑힌 타일의 원래 위치 인덱스로 제거)
+      remainingTiles.splice(idxToDraw, 1);
+
+      // activeTile 정보 업데이트 (값만 저장)
+      activeTile = { value: drawnValue };
+      drawOrder.push(drawnValue);
+
+      // 남은 타일 목록을 다시 그림 (뽑힌 타일이 사라짐)
+      renderRemainingTiles();
+
+      // '다음 타일 뽑기' 버튼 비활성화 (배치할 때까지)
+      drawButton.disabled = true;
+    }
+
+
+    // 보드 셀 클릭 시 실행
+    function handleCellClick(event) {
+        const clickedCell = event.target;
+
+        // 뽑힌 타일이 (activeTileArea에) 있고 클릭한 셀이 비어있을 때만 배치 가능
+        if (activeTile !== null && clickedCell.textContent === '') {
+            // 셀에 activeTile의 값 배치
+            clickedCell.textContent = activeTile.value === '*' ? '☆' : activeTile.value; // 셀에도 ☆으로 표시
+            clickedCell.classList.add('placed'); // 배치된 셀 표시 (필요하면 placed 스타일 추가)
+
+
+            // activeTileArea에 있는 타일 요소를 제거
+            drawnTileArea.innerHTML = ''; // 그냥 비우는 걸로 간편하게 처리 (안에 있는 타일 요소가 삭제됨)
+
+            // 게임 상태 업데이트
+            placedCount++;
+            activeTile = null; // activeTile 초기화
+            warning.textContent = ""; // 경고 메시지 초기화
+
+            // '다음 타일 뽑기' 버튼 다시 활성화
+            if (placedCount < 20) { // 20개 다 채우기 전까지는 활성화
+                drawButton.disabled = false;
+            } else {
+                 drawButton.disabled = true; // 20개 다 채우면 비활성화
+                 // 20개 다 채웠는지 확인하여 게임 종료 처리
+                 // 배치 후 바로 종료 처리
+                setTimeout(endGame, 100); // 셀 배치 애니메이션 등이 완료될 시간을 약간 기다림 (선택 사항)
+            }
+
+        } else if (activeTile === null) {
+            // 뽑은 타일이 없을 때 셀 클릭 시 경고
+            warning.textContent = "타일을 먼저 '다음 타일 뽑기' 버튼으로 뽑아주세요.";
+        } else if (clickedCell.textContent !== '') {
+            // 이미 타일이 있는 셀 클릭 시 경고
+            warning.textContent = "이미 타일이 놓여있는 칸입니다.";
+        }
+    }
+
+    // 게임 종료 처리
+    function endGame() {
+        warning.textContent = "보드가 다 채워졌습니다!";
+        drawButton.disabled = true; // '다음 타일 뽑기' 버튼 비활성화
+        drawnTileArea.innerHTML = ''; // 혹시 activeTileArea에 남아있는 타일 제거
+
+        // 보드의 셀 클릭 이벤트 리스너 제거 (더 이상 배치 불가) - placedCount 체크로도 충분하지만 명시적으로 제거
+        // board.querySelectorAll('.cell').forEach(cell => cell.removeEventListener('click', handleCellClick));
+
+
+        // 조커가 보드에 놓여 있는지 확인
+        const jokerPlacedCell = Array.from(board.children).find(cell => cell.textContent === '☆');
+
+        if (jokerPlacedCell) {
+            // 조커가 있다면 숫자 선택 UI 표시
+            jokerArea.style.display = 'block';
+            // 조커 선택 옵션 (1-30) 채우기
+            jokerSelect.innerHTML = ''; // 기존 옵션 비우기
+            for (let i = 1; i <= 30; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                jokerSelect.appendChild(option);
+            }
+             // 기본값 선택
+             jokerSelect.value = 15; // 중간값 아무거나 기본값으로
+             warning.textContent = "조커 값을 선택해주세요."; // 조커 선택 안내 메시지 추가
+        } else {
+            // 조커가 없다면 바로 점수 계산
+            calculateScore();
+        }
+    }
+
+    // 조커 값 확정 및 점수 계산
+    function confirmJoker() {
+         const selectedValue = parseInt(jokerSelect.value, 10); // 선택된 값을 숫자로 변환
+         const jokerPlacedCell = Array.from(board.children).find(cell => cell.textContent === '☆');
+
+         if (jokerPlacedCell && !isNaN(selectedValue)) { // 선택된 값이 유효한 숫자인지 확인
+             // 보드의 ☆을 선택한 숫자로 변경
+             jokerPlacedCell.textContent = selectedValue;
+             // 조커 셀의 배경색도 일반 셀처럼 보이도록 초기화 (선택 사항)
+             // 조커 셀이 1, 6, 11, 16번에 놓였다면 배경색이 유지될 것임.
+             // jokerPlacedCell.style.backgroundColor = ''; // CSS 규칙에 따라 다시 색이 적용될 것임
+         } else {
+             warning.textContent = "조커 값을 올바르게 선택해주세요.";
+             return; // 유효하지 않으면 계산하지 않음
+         }
+
+         jokerArea.style.display = 'none'; // 조커 선택 UI 숨김
+         warning.textContent = ""; // 조커 선택 안내 메시지 제거
+
+         // 점수 계산 시작
+         calculateScore();
+    }
+
+
+    // 최종 점수 계산
+    function calculateScore() {
+        let totalScore = 0;
+        let breakdown = "점수 상세: ";
+        const boardCells = Array.from(board.children);
+        let currentSequenceLength = 0;
+        let lastValue = -Infinity; // 첫 번째 숫자는 어떤 숫자든 이보다 크거나 같음
+
+         let tempBreakdownParts = []; // 상세 점수를 위한 임시 배열
+         let currentSequenceValues = []; // 현재 시퀀스의 값들을 저장
+
+        for (let i = 0; i < boardCells.length; i++) {
+            // 보드 셀의 텍스트를 숫자로 변환 (조커는 이미 숫자로 바뀐 상태)
+            const cellValue = parseInt(boardCells[i].textContent, 10);
+
+            // 현재 셀의 숫자가 이전 셀의 숫자보다 크거나 같으면 오름차순/같음 유지
+            if (cellValue >= lastValue) {
+                currentSequenceLength++;
+                currentSequenceValues.push(cellValue); // 현재 값 시퀀스에 추가
+            } else {
+                // 오름차순/같음 순서가 깨졌다면, 이전까지의 연속된 칸 수로 점수 계산
+                if (currentSequenceLength > 1) { // 1칸은 0점이므로 2칸 이상일 때만 점수 계산 및 상세 표기
+                    const sequenceScore = scoreTable[currentSequenceLength] || 0; // 점수표에 없으면 0점
+                    totalScore += sequenceScore;
+                    tempBreakdownParts.push(`[${currentSequenceValues.join('→')}] ${currentSequenceLength}칸(${sequenceScore}점)`);
+                }
+                // 새로운 오름차순/같음 순서 시작 (현재 칸부터)
+                currentSequenceLength = 1;
+                currentSequenceValues = [cellValue]; // 새로운 시퀀스 값으로 초기화
+            }
+            // 다음 비교를 위해 현재 셀의 숫자를 lastValue로 업데이트
+            lastValue = cellValue;
+        }
+
+        // 마지막에 남아있는 오름차순/같음 순서에 대한 점수 계산
+        if (currentSequenceLength > 1) { // 1칸은 0점이므로 2칸 이상일 때만
+            const sequenceScore = scoreTable[currentSequenceLength] || 0;
+            totalScore += sequenceScore;
+             tempBreakdownParts.push(`[${currentSequenceValues.join('→')}] ${currentSequenceLength}칸(${sequenceScore}점)`);
+        }
+
+        // 상세 점수 표기 문자열 조합
+        breakdown += tempBreakdownParts.join(' + ');
+         if (tempBreakdownParts.length === 0) {
+             breakdown += "연속된 오름차순/같음 구간이 없습니다 (2칸 이상).";
+         }
+
+
+        // 최종 점수와 상세 내역 화면에 표시
+        document.getElementById('score').textContent = totalScore;
+        scoreBreakdown.textContent = breakdown;
+
+        // 결과 저장 버튼 활성화
+        submitBtn.disabled = false;
+        submitResult();
+    }
+
+
+    // 결과 저장 (더미 함수 - 서버 저장 기능 없음)
+    function submitResult() {
+        const playerName = document.getElementById('player').value.trim() || "익명"; // 이름 입력 안 했으면 익명
+        const finalScore = document.getElementById('score').textContent;
+        const finalBoardState = Array.from(board.children).map(cell => cell.textContent); // 최종 보드 상태
+        const drawOrderState = drawOrder.map(val => val === '*' ? '☆' : val); // 조커는 ☆으로 표시
+
+        // 실제 저장 기능은 없음을 알림
+        alert(`${playerName}님의 최종 점수는 ${finalScore}점입니다!\n(결과가 브라우저 콘솔에 기록됩니다. 실제 서버 저장은 구현되지 않았습니다.)`);
+
+        // 개발자 도구 콘솔에 결과 출력
+        console.log("--- 스트림스 게임 결과 ---");
+        console.log("플레이어:", playerName);
+        console.log("최종 점수:", finalScore);
+        console.log("뽑은 타일 순서:", drawOrderState.join(', ')); // 뽑은 순서
+        console.log("최종 보드 상태:", finalBoardState.join(', ')); // 최종 보드
+        console.log("------------------------");
+
+        // 저장 후 버튼 비활성화 (선택 사항)
+        // submitBtn.disabled = true;
+    }
+
+    // 페이지 로드 완료 시 게임 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+        // remainingTiles는 초기 상태인 allTiles 복사본으로 이미 설정됨
+        renderRemainingTiles(); // 초기 남은 타일 목록 표시
+        renderBoard(); // 보드판 초기화 (셀 생성 및 이벤트 추가)
+        // 초기 상태에서 뽑기 버튼만 활성화
+        drawButton.disabled = false;
+        submitBtn.disabled = true; // 결과 저장 버튼은 게임 끝나야 활성화
+    });
+
+    // '처음으로' 버튼 기능은 location.reload()로 이미 구현되어 있음
+  
+let alreadySaved = false;
+function submitResult() {
+    if (alreadySaved) return;
+    const name = document.getElementById("player").value.trim() || "익명";
+    const score = document.getElementById("score").textContent;
+    const tiles = Array.from(board.children).map(cell => cell.textContent || "");
+    const order = drawOrder.map(val => val === '*' ? '☆' : val);
+    fetch("https://script.google.com/macros/s/AKfycbx1oSRJHJ4H9WiECUBLhHrvMBcW-oaYcc5KDPeqLwBadgWSdW2rx20MUJaSsPull7MSBQ/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, score, tiles, order })
+    }).then(res => {
+        if (res.ok) {
+            console.log("기록 완료");
+            alreadySaved = true;
+        } else {
+            console.error("서버 오류로 기록 실패");
+        }
+    }).catch(err => {
+        console.error("네트워크 오류로 기록 실패:", err);
+    });
+}
+
+</script>
+</body>
+</html>
