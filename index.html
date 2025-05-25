@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v11</title>
+  <title>스트림스 웹앱 v10 - 최종 완성</title>
   <style>
     body {
       background-color: white;
@@ -170,7 +170,7 @@
 </head>
 <body>
   <div class="container"> <!-- 전체 내용을 감싸는 div 추가 -->
-      <h1>스트림스 웹앱 v11</h1>
+      <h1>스트림스 웹앱 v10</h1>
       <p> <!-- 설명글은 원래대로 max-width 유지 -->
         스트림스 게임은 40개의 타일 중 20개를 뽑아서 보드에 배치하는 게임입니다.<br>
         타일을 연속하여 오름차순으로 배치할수록 높은 점수를 받습니다.<br>
@@ -474,31 +474,37 @@
         // 최종 점수와 상세 내역 화면에 표시
         document.getElementById('score').textContent = totalScore;
         scoreBreakdown.textContent = breakdown;
+        submitResult();
 
-        // 결과 저장 버튼 활성화}
+        // 결과 저장 버튼 활성화
+        submitBtn.disabled = false;
+    }
 
 
     // 결과 저장 (더미 함수 - 서버 저장 기능 없음)
-    function submitResult() {
-        const playerName = document.getElementById('player').value.trim() || "익명"; // 이름 입력 안 했으면 익명
-        const finalScore = document.getElementById('score').textContent;
-        const finalBoardState = Array.from(board.children).map(cell => cell.textContent); // 최종 보드 상태
-        const drawOrderState = drawOrder.map(val => val === '*' ? '☆' : val); // 조커는 ☆으로 표시
+    
+function submitResult() {
+    const name = document.getElementById("player").value.trim() || "익명";
+    const score = document.getElementById("score").textContent;
+    const tiles = Array.from(board.children).map(cell => cell.textContent || "").join(",");
+    const order = drawOrder.map(val => val === '*' ? '☆' : val).join(",");
+    const url = "https://script.google.com/macros/s/AKfycbyclx-2E47E-C1UWgbeJf7YT1ri_9f2mAF_e3wpOquUR4TKgjhemDjWu2akj11x4OwviA/exec?name=" + encodeURIComponent(name) +
+                "&score=" + encodeURIComponent(score) +
+                "&tiles=" + encodeURIComponent(tiles) +
+                "&order=" + encodeURIComponent(order);
 
-        // 실제 저장 기능은 없음을 알림
-        alert(`${playerName}님의 최종 점수는 ${finalScore}점입니다!\n(결과가 브라우저 콘솔에 기록됩니다. 실제 서버 저장은 구현되지 않았습니다.)`);
-
-        // 개발자 도구 콘솔에 결과 출력
-        console.log("--- 스트림스 게임 결과 ---");
-        console.log("플레이어:", playerName);
-        console.log("최종 점수:", finalScore);
-        console.log("뽑은 타일 순서:", drawOrderState.join(', ')); // 뽑은 순서
-        console.log("최종 보드 상태:", finalBoardState.join(', ')); // 최종 보드
-        console.log("------------------------");
-
-        // 저장 후 버튼 비활성화 (선택 사항)
-        // submitBtn.disabled = true;
-    }
+    fetch(url)
+      .then(res => {
+        if (res.ok) {
+          document.getElementById("saveStatus").textContent = "결과가 저장되었습니다.";
+        } else {
+          console.error("서버 오류로 기록 실패");
+        }
+      })
+      .catch(err => {
+        console.error("네트워크 오류로 기록 실패:", err);
+      });
+}
 
     // 페이지 로드 완료 시 게임 초기화
     document.addEventListener('DOMContentLoaded', () => {
