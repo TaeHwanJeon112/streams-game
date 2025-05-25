@@ -493,7 +493,7 @@ function submitResult() {
     const url = "https://script.google.com/macros/s/AKfycbyclx-2E47E-C1UWgbeJf7YT1ri_9f2mAF_e3wpOquUR4TKgjhemDjWu2akj11x4OwviA/exec?name=" + encodeURIComponent(name) +
                 "&score=" + encodeURIComponent(score) +
                 "&tiles=" + encodeURIComponent(tiles) +
-                "&order=" + encodeURIComponent(order);
+                "&drawOrder=" + encodeURIComponent(order);  // ← 이름 변경
 
     fetch(url)
         .then(res => {
