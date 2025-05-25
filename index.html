@@ -524,7 +524,7 @@ function submitResult() {
     const score = document.getElementById("score").textContent;
     const tiles = Array.from(board.children).map(cell => cell.textContent || "");
     const order = drawOrder.map(val => val === '*' ? '☆' : val);
-    fetch("https://script.google.com/macros/s/AKfycbx1oSRJHJ4H9WiECUBLhHrvMBcW-oaYcc5KDPeqLwBadgWSdW2rx20MUJaSsPull7MSBQ/exec", {
+    fetch("https://script.google.com/macros/s/AKfycbw5HkX7h2wtjmdbCKfWIxraH6ZUu-_R2cR9llEl6PrpWIpI-IFUzjQdNUKmN-nD9GnRgw/exec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, score, tiles, order })
