@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v15 - 랭킹시스템</title>
+  <title>스트림스 웹앱 v12 - 버리는 칸 최적화</title>
   <style>
     body {
       background-color: white;
@@ -942,7 +942,7 @@ async function submitResult() {
     }
 
     /* ---------- GAS 저장 엔드포인트 ---------- */
-    const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzu8RE7GqIQdZeRUG2cW2qe_FWomSjlOGqsLMEVi6369gw1xtqq2J6ZD5xPQKKaLubqLQ/exec';
+    const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycby5ZtLBzXl8sD4daPTIlvR4mnq_DZM_z6HWQHrF48qnTwDI5URcvK_PpCg5mMq74RT8ww/exec';
     async function gasSave({name, score, tiles, order, date}){
       try{
         if (!GAS_ENDPOINT) return;
@@ -1246,7 +1246,6 @@ document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
 
 </body>
 </html>
-
 
 
 
