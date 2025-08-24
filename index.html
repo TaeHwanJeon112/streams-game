@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>스트림스 웹앱 v15 랭킹시스템</title>
+  <title>스트림스 웹앱 v12 - 버리는 칸 최적화</title>
   <style>
     body {
       background-color: white;
@@ -880,7 +880,9 @@ async function submitResult() {
         tiles: finalBoardState,
         order: drawOrderState,
         date:  nowStr
+      
       });
+      window.refreshLeaderboards && window.refreshLeaderboards();
     }
   } catch (e) {
     console.warn('GAS 저장 실패:', e);
@@ -905,7 +907,7 @@ async function submitResult() {
   console.log('최종 보드 상태:', finalBoardState.join(', '));
   console.log('------------------------');
  
-  window.refreshLeaderboards && window.refreshLeaderboards();
+ 
 
 }
 // 교체 끝
@@ -942,17 +944,33 @@ async function submitResult() {
     }
 
     /* ---------- GAS 저장 엔드포인트 ---------- */
+    // 상단 어딘가에 있는 상수
     const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycby5ZtLBzXl8sD4daPTIlvR4mnq_DZM_z6HWQHrF48qnTwDI5URcvK_PpCg5mMq74RT8ww/exec';
-    async function gasSave({name, score, tiles, order, date}){
-      try{
-        if (!GAS_ENDPOINT) return;
-        const params = new URLSearchParams({ action:'save', name:String(name||'익명'), score:String(score||0),
-                                             tiles:Array.isArray(tiles)?tiles.join(','):String(tiles||''),
-                                             order:Array.isArray(order)?order.join(','):String(order||''),
-                                             date:String(date||'') });
-        await fetch(`${GAS_ENDPOINT}?${params.toString()}`, {method:'GET'});
-      }catch(e){ console.warn('GAS save failed:', e); }
+
+    // 이 함수만 교체
+    async function gasSave({name, score, tiles, order, date}) {
+      const params = new URLSearchParams({
+        action: 'save',
+        name : String(name || '익명'),
+        score: String(score || 0),
+        tiles: Array.isArray(tiles) ? tiles.join(',') : String(tiles || ''),
+        order: Array.isArray(order) ? order.join(',') : String(order || ''),
+        date : String(date || '')
+      });
+      const res = await fetch(`${GAS_ENDPOINT}?${params.toString()}`, { method: 'GET' });
+
+      // 여기서 반드시 응답 내용을 확인!
+      const txt = await res.text();
+      let data;
+      try { data = JSON.parse(txt); } catch { data = { ok:false, raw:txt }; }
+
+      if (!res.ok || !data || data.ok === false) {
+        console.warn('GAS save error:', res.status, data);
+        throw new Error(`GAS save failed: HTTP ${res.status} / ${JSON.stringify(data)}`);
+      }
+      return data; // {ok:true, msg:'saved', ...}
     }
+
 
     /* ---------- GViz 조회 (전체/월별) ---------- */
     const SHEET_ID   = '1jBL_ZHXPJUCCopdPm-SVjmQLDw_zoQHoO6K9vJ95CiI';
@@ -1246,7 +1264,6 @@ document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
 
 </body>
 </html>
-
 
 
 
