@@ -850,7 +850,7 @@
         });
     }
 
-   // 교체 시작: submitResult
+// 교체 시작: submitResult
 async function submitResult() {
   const playerName = (document.getElementById('player')?.value || '').trim() || '익명';
   const finalScore = parseInt(document.getElementById('score')?.textContent || '0', 10) || 0;
@@ -890,6 +890,8 @@ async function submitResult() {
   try {
     if (typeof refreshRanking === 'function') {
       await refreshRanking();
+      await refreshMonthly();   // ← 저장 직후 월별 재조회
+
     }
   } catch (e) {
     console.warn('랭킹 새로고침 실패:', e);
@@ -964,7 +966,7 @@ async function submitResult() {
         score:Number(r.c?.[3]?.v ?? 0)
       })).filter(r=>!Number.isNaN(r.score));
       rows.sort((a,b)=>(b.score===a.score)?String(a.date).localeCompare(String(b.date)):(b.score-a.score));
-      return rows.slice(0,50); // 상위 50까지 받아두고 필터링에서 10개 사용
+      return rows; // 전체 행 반환 (renderServerRanking에서 Top10만 씀)
     }
 
     function escapeHtml(s){ return String(s).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -1005,16 +1007,14 @@ async function submitResult() {
 
     async function refreshRanking(){
       try{
-        const data=await gasFetchTop();
-        renderServerRanking(data); // 전체
-        buildMonthOptions(data);
-        const sel=document.getElementById('monthSelect');
-        if (sel && sel.value){ renderMonthlyRankingFor(sel.value, data); sel.onchange=()=>renderMonthlyRankingFor(sel.value,data); }
+        const data = await gasFetchTop();
+        renderServerRanking(data); // 전체(역대)만 갱신
       }catch(e){
         console.warn('Server ranking unavailable, falling back to local ranking.', e);
         if (typeof displayRanking==='function') displayRanking();
       }
     }
+
 
     // 초기 렌더
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -1113,10 +1113,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 </script>
+<script>
+async function refreshMonthly(){
+  try{
+    const rows = await gasFetchAllRows(); // 전체 행
+    buildMonthOptions(rows);
+    const sel = document.getElementById('monthSelect');
+    if (sel && sel.options && sel.options.length){
+      renderMonthlyRankingFor(sel.value, rows);
+      sel.onchange = () => renderMonthlyRankingFor(sel.value, rows);
+    } else {
+      const ul = document.getElementById('rankingListMonthly');
+      if (ul) ul.innerHTML = '<li>월 데이터가 없습니다.</li>';
+    }
+  }catch(e){
+    console.warn('월별 랭킹 불러오기 실패:', e);
+    const ul = document.getElementById('rankingListMonthly');
+    if (ul) ul.innerHTML = '<li>월별 데이터 로딩 실패</li>';
+  }
+}
+document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
+</script>
 
 </body>
 </html>
-
 
 
 
