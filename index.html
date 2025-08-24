@@ -887,16 +887,6 @@
         console.warn('GAS 저장 실패:', e);
       }
 
-      // 3) 서버 랭킹/월별 랭킹 다시 불러오기
-      try {
-        if (typeof refreshRanking === 'function') {
-          await refreshRanking();
-          await refreshMonthly();   // ← 저장 직후 월별 재조회
-
-        }
-      } catch (e) {
-        console.warn('랭킹 새로고침 실패:', e);
-      }
 
       // (선택) 기존 로그 유지
       console.log('--- 스트림스 게임 결과 ---');
@@ -937,17 +927,25 @@
       });
       const url = `${GAS_ENDPOINT}?${params.toString()}`;
       const res = await fetch(url, { method:'GET', redirect:'follow' });
+ 
+      const text = await res.text().then(t => t.trim());  
 
-      // 응답 본문을 반드시 확인 (텍스트/JSON 모두 케이스 처리)
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { ok:false, raw:text }; }
+      // ★ 여기서부터 변경: JSON이 아니고 'OK' 텍스트여도 성공으로 인정
+      let ok = false, payload = null;
+      try {
+        const parsed = JSON.parse(text);
+        ok = parsed && parsed.ok !== false;   // {ok:true,...} 또는 ok 키가 없으면 true 취급
+        payload = parsed;
+      } catch {
+        ok = (text.toUpperCase() === 'OK');   // 서버가 'OK'만 돌려줄 때 성공 처리
+        payload = { raw: text };
+      }
 
-      if (!res.ok || !data || data.ok === false) {
-        console.warn('GAS save failed:', res.status, data);
+      if (!res.ok || !ok) {
+        console.warn('GAS save failed:', res.status, payload);
         throw new Error(`GAS save failed: HTTP ${res.status}, body=${text}`);
       }
-      return data; // { ok:true, msg:'saved', ... }
+      return payload || { ok:true };
     }
 
 
@@ -995,12 +993,7 @@
     }
 
 
-    // 초기 렌더
-    document.addEventListener('DOMContentLoaded', ()=>{
-      renderRemainingTiles(); renderBoard(); drawButton.disabled=false; recommendBtn.disabled=true; submitBtn.disabled=true;
-      displayRanking(); // 로컬 폴백 먼저
-      refreshRanking(); // 서버 시도
-    });
+
   </script>
 
 <script>
@@ -1113,6 +1106,7 @@
 
 </body>
 </html>
+
 
 
 
