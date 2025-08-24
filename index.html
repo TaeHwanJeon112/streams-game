@@ -853,36 +853,33 @@
     });
   </script>
 
-  <!-- ====== 여기부터: GAS 연동 스크립트 ====== -->
-  <script>
-  /* ===== Google Apps Script (GAS) 공유 랭킹 연동 =====
-     사용 전 아래 GAS_ENDPOINT 를 본인의 웹앱 URL로 바꾸세요.
-     예: const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbx.../exec';
-  */
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzu8RE7GqIQdZeRUG2cW2qe_FWomSjlOGqsLMEVi6369gw1xtqq2J6ZD5xPQKKaLubqLQ/exec';
-
-
-  /* 서버 저장 */
-  async function gasSave({name, score, tiles, order, date}) {
-    try {
-      if (!GAS_ENDPOINT || GAS_ENDPOINT.includes('PUT_YOUR_GAS_WEBAPP_URL_HERE')) return;
-      const params = new URLSearchParams({
-        action: 'save',
-        name: String(name || '익명'),
-        score: String(score || 0),
-        tiles: Array.isArray(tiles) ? tiles.join(',') : String(tiles || ''),
-        order: Array.isArray(order) ? order.join(',') : String(order || ''),
-        date: String(date || '')
-      });
-      await fetch(`${GAS_ENDPOINT}?${params.toString()}`, { method: 'GET' });
-    } catch (e) {
-      console.warn('GAS save failed:', e);
-    }
-  }
-
-  /* 서버 조회(JSON 배열 기대: [{name, score, saved_at|date}, ...]) */
-<!-- ▼▼▼ GAS 조회 대체: 구글시트 직접 읽기 ▼▼▼ -->
+<!-- ====== 여기부터: GAS 연동 스크립트 ====== -->
 <script>
+/* ===== Google Apps Script (GAS) 공유 랭킹 연동 =====
+   사용 전 아래 GAS_ENDPOINT 를 본인의 웹앱 URL로 바꾸세요.
+   예: const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbx.../exec';
+*/
+const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzu8RE7GqIQdZeRUG2cW2qe_FWomSjlOGqsLMEVi6369gw1xtqq2J6ZD5xPQKKaLubqLQ/exec';
+
+/* 서버 저장 */
+async function gasSave({name, score, tiles, order, date}) {
+  try {
+    if (!GAS_ENDPOINT || GAS_ENDPOINT.includes('PUT_YOUR_GAS_WEBAPP_URL_HERE')) return;
+    const params = new URLSearchParams({
+      action: 'save',
+      name: String(name || '익명'),
+      score: String(score || 0),
+      tiles: Array.isArray(tiles) ? tiles.join(',') : String(tiles || ''),
+      order: Array.isArray(order) ? order.join(',') : String(order || ''),
+      date: String(date || '')
+    });
+    await fetch(`${GAS_ENDPOINT}?${params.toString()}`, { method: 'GET' });
+  } catch (e) {
+    console.warn('GAS save failed:', e);
+  }
+}
+
+/* ▼▼▼ GAS 조회 대체: 구글시트 직접 읽기(GViz) ▼▼▼ */
 // 시트 정보 (ID와 탭 이름)
 const SHEET_ID   = '1jBL_ZHXPJUCCopdPm-SVjmQLDw_zoQHoO6K9vJ95CiI';
 const SHEET_NAME = '스트림스'; // 시트 탭 이름 그대로!
@@ -915,78 +912,77 @@ async function gasFetchTop() {
 
   return rows.slice(0,10);
 }
-</script>
-<!-- ▲▲▲ /구글시트 직접 읽기 ▲▲▲ -->
+/* ▲▲▲ /구글시트 직접 읽기 ▲▲▲ */
 
-
-  /* 서버 랭킹 렌더링 */
-  function renderServerRanking(rows){
-    const ul = document.getElementById('rankingList');
-    if (!ul) return;
-    ul.innerHTML = '';
-    if (!rows || !rows.length){
-      ul.innerHTML = '<li>서버 랭킹이 없습니다. 먼저 기록해 보세요!</li>';
-      return;
-    }
-    rows.slice(0, 10).forEach((r, i) => {
-      const li = document.createElement('li');
-      const displayDate = r.date || r.saved_at || '';
-      li.innerHTML = `
-        <span class="rank-name">${i+1}. ${escapeHtml(r.name || '익명')}</span>
-        <span>
-          <span class="rank-score">${escapeHtml(r.score)}</span>
-          <span class="rank-date">(${escapeHtml(displayDate)})</span>
-        </span>`;
-      const scoreSpan = li.querySelector('.rank-score');
-      if (scoreSpan && !/점$/.test(scoreSpan.textContent)) {
-        scoreSpan.textContent = scoreSpan.textContent + '점';
-      }
-      ul.appendChild(li);
-    });
+/* 서버 랭킹 렌더링 */
+function renderServerRanking(rows){
+  const ul = document.getElementById('rankingList');
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (!rows || !rows.length){
+    ul.innerHTML = '<li>서버 랭킹이 없습니다. 먼저 기록해 보세요!</li>';
+    return;
   }
-
-  /* 서버 랭킹 갱신: 실패 시 localStorage 폴백 */
-  async function refreshRanking(){
-    try {
-      const data = await gasFetchTop();
-      renderServerRanking(data);
-    } catch (e) {
-      console.warn('Server ranking unavailable, falling back to local ranking.', e);
-      if (typeof displayRanking === 'function') displayRanking();
+  rows.slice(0, 10).forEach((r, i) => {
+    const li = document.createElement('li');
+    const displayDate = r.date || r.saved_at || '';
+    li.innerHTML = `
+      <span class="rank-name">${i+1}. ${escapeHtml(r.name || '익명')}</span>
+      <span>
+        <span class="rank-score">${escapeHtml(r.score)}</span>
+        <span class="rank-date">(${escapeHtml(displayDate)})</span>
+      </span>`;
+    const scoreSpan = li.querySelector('.rank-score');
+    if (scoreSpan && !/점$/.test(scoreSpan.textContent)) {
+      scoreSpan.textContent = scoreSpan.textContent + '점';
     }
-  }
-
-  /* submitResult 패치: 기존 동작 + 서버 저장 + 서버 랭킹 새로고침 */
-  (function(){
-    if (typeof submitResult === 'function'){
-      const origSubmit = submitResult;
-      window.submitResult = function(){
-        const playerName = (document.getElementById('player')?.value || '').trim() || '익명';
-        const finalScore = parseInt(document.getElementById('score')?.textContent || '0', 10) || 0;
-        const boardEl = document.getElementById('board');
-        const finalBoardState = boardEl ? Array.from(boardEl.children).map(c=>c.textContent) : [];
-        const drawOrderState = (typeof drawOrder !== 'undefined' ? drawOrder : []).map(v => v === '*' ? '☆' : v);
-        const nowStr = new Date().toLocaleString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
-
-        // 기존 로컬 저장/알림 먼저 수행
-        origSubmit();
-
-        // 서버 저장 후 랭킹 새로고침
-        gasSave({name: playerName, score: finalScore, tiles: finalBoardState, order: drawOrderState, date: nowStr})
-          .then(()=> refreshRanking());
-      };
-    }
-  })();
-
-  /* 페이지 로드 시 서버 랭킹 시도 */
-  document.addEventListener('DOMContentLoaded', () => {
-    refreshRanking();
+    ul.appendChild(li);
   });
-  </script>
-  <!-- ====== /GAS 연동 스크립트 ====== -->
+}
+
+/* 서버 랭킹 갱신: 실패 시 localStorage 폴백 */
+async function refreshRanking(){
+  try {
+    const data = await gasFetchTop();
+    renderServerRanking(data);
+  } catch (e) {
+    console.warn('Server ranking unavailable, falling back to local ranking.', e);
+    if (typeof displayRanking === 'function') displayRanking();
+  }
+}
+
+/* submitResult 패치: 기존 동작 + 서버 저장 + 서버 랭킹 새로고침 */
+(function(){
+  if (typeof submitResult === 'function'){
+    const origSubmit = submitResult;
+    window.submitResult = function(){
+      const playerName = (document.getElementById('player')?.value || '').trim() || '익명';
+      const finalScore = parseInt(document.getElementById('score')?.textContent || '0', 10) || 0;
+      const boardEl = document.getElementById('board');
+      const finalBoardState = boardEl ? Array.from(boardEl.children).map(c=>c.textContent) : [];
+      const drawOrderState = (typeof drawOrder !== 'undefined' ? drawOrder : []).map(v => v === '*' ? '☆' : v);
+      const nowStr = new Date().toLocaleString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+
+      // 기존 로컬 저장/알림 먼저 수행
+      origSubmit();
+
+      // 서버 저장 후 랭킹 새로고침
+      gasSave({name: playerName, score: finalScore, tiles: finalBoardState, order: drawOrderState, date: nowStr})
+        .then(()=> refreshRanking());
+    };
+  }
+})();
+
+/* 페이지 로드 시 서버 랭킹 시도 */
+document.addEventListener('DOMContentLoaded', () => {
+  refreshRanking();
+});
+</script>
+<!-- ====== /GAS 연동 스크립트 ====== -->
 
 </body>
 </html>
+
 
 
 
