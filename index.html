@@ -922,25 +922,6 @@
     });
   </script>
 <script> 
-    /* ---------- 로컬 랭킹 (폴백) ---------- */
-    const RANKING_KEY='streams_rankings';
-    function getRankings(){ const s=localStorage.getItem(RANKING_KEY); return s?JSON.parse(s):[]; }
-    function saveRanking(name,score){
-      let arr=getRankings();
-      arr.push({name,score,date:new Date().toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})});
-      arr.sort((a,b)=>(b.score===a.score)?(new Date(a.date)-new Date(b.date)):(b.score-a.score));
-      arr=arr.slice(0,10); localStorage.setItem(RANKING_KEY, JSON.stringify(arr)); displayRanking();
-    }
-    function displayRanking(){
-      const ul=rankingList; ul.innerHTML='';
-      const arr=getRankings();
-      if (!arr.length){ ul.innerHTML='<li>아직 랭킹이 없습니다.</li>'; return; }
-      arr.forEach((e,i)=>{
-        const li=document.createElement('li');
-        li.innerHTML=`<span class="rank-name">${i+1}. ${e.name}</span><span><span class="rank-score">${e.score}점</span> <span class="rank-date">(${e.date})</span></span>`;
-        ul.appendChild(li);
-      });
-    }
 
     /* ---------- GAS 저장 엔드포인트 ---------- */
     const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxgbLncrrhsSbeELavWpd_V_HN5CttKm0ve9gIS7H4vbPB45TpkSC-Cgmp31EtReFX4zQ/exec';
@@ -1003,28 +984,6 @@
       });
     }
 
-    function monthKeyFrom(dateStr){ const s=String(dateStr||''); const m=s.match(/^(\d{4})[-/.](\d{1,2})/); if(!m) return ''; return `${m[1]}-${String(m[2]).padStart(2,'0')}`; }
-    function buildMonthOptions(rows){
-      const sel=document.getElementById('monthSelect'); if(!sel) return;
-      const keys=Array.from(new Set(rows.map(r=>monthKeyFrom(r.date||r.saved_at)).filter(Boolean)));
-      keys.sort((a,b)=>b.localeCompare(a));
-      sel.innerHTML='';
-      const now=new Date(); const currentKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      keys.forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); });
-      if (keys.includes(currentKey)) sel.value=currentKey; else if(keys.length) sel.value=keys[0];
-    }
-    function renderMonthlyRankingFor(monthKey, rows){
-      const ul=document.getElementById('rankingListMonthly'); if(!ul) return; ul.innerHTML='';
-      const monthly=rows.filter(r=>monthKeyFrom(r.date||r.saved_at)===monthKey);
-      if(!monthly.length){ ul.innerHTML='<li>이 달의 랭킹이 없습니다.</li>'; return; }
-      monthly.slice(0,10).forEach((r,i)=>{
-        const li=document.createElement('li'); const d=r.date||r.saved_at||'';
-        li.innerHTML=`<span class="rank-name">${i+1}. ${escapeHtml(r.name||'익명')}</span><span><span class="rank-score">${escapeHtml(r.score)}</span> <span class="rank-date">(${escapeHtml(d)})</span></span>`;
-        const s=li.querySelector('.rank-score'); if(s && !/점$/.test(s.textContent)) s.textContent+='점';
-        ul.appendChild(li);
-      });
-    }
-
     async function refreshRanking(){
       try{
         const data = await gasFetchTop();
@@ -1045,116 +1004,7 @@
   </script>
 
 <script>
-/* ===== 월별 랭킹 전용 코드 (기존 코드와 독립) ===== */
 
-/* 날짜 "YYYY-MM" 키 뽑기 */
-function monthKeyFrom(dateStr){
-  const s = String(dateStr || '');
-  const m = s.match(/^(\d{4})[-/.](\d{1,2})/);
-  if (!m) return '';
-  return `${m[1]}-${String(m[2]).padStart(2,'0')}`;
-}
-
-/* GViz 전체 행 읽기: 기존 gasFetchTop은 상위 10개만이므로, 월별용으로 전체를 새로 읽습니다 */
-async function gasFetchAllRows(){
-  // 기존 GAS 블록에서 쓰는 상수 재사용 (이미 파일 하단에 선언되어 있음)
-  // const SHEET_ID = '...'; const SHEET_NAME = '...';
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&range=A2:D`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('HTTP ' + res.status);
-  const txt = await res.text();
-  const match = txt.match(/\{[\s\S]*\}/);
-  if(!match) throw new Error('Failed to parse GViz JSON');
-  const data = JSON.parse(match[0]);
-
-  // A=index, B=saved_at, C=name, D=score
-  const rows = (data.table?.rows || []).map(r => ({
-    index : r.c?.[0]?.v ?? '',
-    date  : (r.c?.[1]?.f ?? r.c?.[1]?.v ?? ''),
-    name  : r.c?.[2]?.v ?? '익명',
-    score : Number(r.c?.[3]?.v ?? 0)
-  })).filter(r => !Number.isNaN(r.score));
-
-  // 점수 내림차순, 동점시 날짜 오름차순
-  rows.sort((a,b) => (b.score === a.score) ? String(a.date).localeCompare(String(b.date)) : b.score - a.score);
-  return rows; // 전체 반환
-}
-
-/* 드롭다운 옵션 만들기 (이번 달 우선 선택) */
-function buildMonthOptions(rows){
-  const sel = document.getElementById('monthSelect');
-  if (!sel) return;
-  const keys = [...new Set(rows.map(r => monthKeyFrom(r.date)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
-  sel.innerHTML = '';
-  keys.forEach(k => {
-    const opt = document.createElement('option');
-    opt.value = k; opt.textContent = k; sel.appendChild(opt);
-  });
-  const now = new Date();
-  const current = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  if (keys.includes(current)) sel.value = current;
-  else if (keys.length) sel.value = keys[0];
-}
-
-/* 선택된 월의 Top10 렌더 */
-function renderMonthlyRankingFor(monthKey, rows){
-  const ul = document.getElementById('rankingListMonthly');
-  if (!ul) return;
-  ul.innerHTML = '';
-  const monthly = rows.filter(r => monthKeyFrom(r.date) === monthKey).slice(0,10);
-  if (!monthly.length){
-    ul.innerHTML = '<li>이 달의 랭킹이 없습니다.</li>';
-    return;
-  }
-  monthly.forEach((r,i) => {
-    const li = document.createElement('li');
-    const d = r.date || '';
-    li.innerHTML = `
-      <span class="rank-name">${i+1}. ${r.name}</span>
-      <span><span class="rank-score">${r.score}점</span> <span class="rank-date">(${d})</span></span>`;
-    ul.appendChild(li);
-  });
-}
-
-/* 페이지 로드 시 월별 랭킹 초기화 (전체 랭킹 로직은 기존 코드 유지) */
-document.addEventListener('DOMContentLoaded', async () => {
-  try{
-    const rows = await gasFetchAllRows();  // 전체 데이터
-    buildMonthOptions(rows);
-    const sel = document.getElementById('monthSelect');
-    if (sel && sel.options && sel.options.length){
-      renderMonthlyRankingFor(sel.value, rows);
-      sel.onchange = () => renderMonthlyRankingFor(sel.value, rows);
-    }
-  }catch(e){
-    console.warn('월별 랭킹 불러오기 실패:', e);
-    const ul = document.getElementById('rankingListMonthly');
-    if (ul) ul.innerHTML = '<li>월별 데이터 로딩 실패</li>';
-  }
-});
-</script>
-<script>
-async function refreshMonthly(){
-  try{
-    const rows = await gasFetchAllRows(); // 전체 행
-    buildMonthOptions(rows);
-    const sel = document.getElementById('monthSelect');
-    if (sel && sel.options && sel.options.length){
-      renderMonthlyRankingFor(sel.value, rows);
-      sel.onchange = () => renderMonthlyRankingFor(sel.value, rows);
-    } else {
-      const ul = document.getElementById('rankingListMonthly');
-      if (ul) ul.innerHTML = '<li>월 데이터가 없습니다.</li>';
-    }
-  }catch(e){
-    console.warn('월별 랭킹 불러오기 실패:', e);
-    const ul = document.getElementById('rankingListMonthly');
-    if (ul) ul.innerHTML = '<li>월별 데이터 로딩 실패</li>';
-  }
-}
-document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
-</script>
-<script>
 /* ===== 단일 리더보드 모듈: 전체 Top10 + 월별 Top10 (충돌 방지용) ===== */
 (function(){
   // 시트 정보 (필요 시 바꿔주세요)
@@ -1263,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
 
 </body>
 </html>
+
 
 
 
