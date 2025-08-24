@@ -194,7 +194,7 @@
   </style>
 
 <style>
-  .rankings-wrap{ display:flex; gap:16px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+  .rankings-wrap{ display:flex; max-width: 660px; margin: 20px auto; gap:16px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
   .ranking-card{ width:300px; border:1px solid #ccc; background:#f9f9f9; padding:20px; text-align:left; }
   .ranking-card h3{ text-align:center; margin-bottom:12px; }
   .month-control{ margin-bottom:10px; text-align:center; }
@@ -256,13 +256,7 @@
       <button onclick="submitResult()" disabled id="submitBtn">결과 저장</button>
 
       <!-- 랭킹 영역 -->
-      <div id="rankingArea">
-          <h3>🏆 역대 최고 점수 랭킹 🏆</h3>
-          <ul id="rankingList">
-              <!-- 랭킹 항목들이 여기에 동적으로 추가될 예정 -->
-          </ul>
       </div>
-  </div>
 
   <script>
     const scoreTable = {
@@ -1034,6 +1028,25 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshRanking();
 });
 </script>
+
+<div class="rankings-wrap">
+
+  <!-- 전체 랭킹 카드 -->
+  <div id="rankingArea" class="ranking-card">
+    <h3>🏆 역대 최고 점수 랭킹</h3>
+    <ul id="rankingList"></ul>
+  </div>
+
+  <!-- 월별 랭킹 카드 -->
+  <div id="rankingAreaMonthly" class="ranking-card">
+    <h3>📅 월별 랭킹</h3>
+    <div class="month-control">
+      <label>월 선택: <select id="monthSelect"></select></label>
+    </div>
+    <ul id="rankingListMonthly"></ul>
+  </div>
+
+</div>
 <!-- ====== /GAS 연동 스크립트 ====== -->
 
 </body>
