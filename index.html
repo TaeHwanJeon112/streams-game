@@ -881,21 +881,43 @@
   }
 
   /* 서버 조회(JSON 배열 기대: [{name, score, saved_at|date}, ...]) */
-  async function gasFetchTop() {
-    if (!GAS_ENDPOINT || GAS_ENDPOINT.includes('PUT_YOUR_GAS_WEBAPP_URL_HERE')) {
-      throw new Error('GAS endpoint not configured');
-    }
-    const url = `${GAS_ENDPOINT}?action=leaderboard`;
-    const res = await fetch(url, { method: 'GET' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  }
+<!-- ▼▼▼ GAS 조회 대체: 구글시트 직접 읽기 ▼▼▼ -->
+<script>
+// 시트 정보 (ID와 탭 이름)
+const SHEET_ID   = '1jBL_ZHXPJUCCopdPm-SVjmQLDw_zoQHoO6K9vJ95CiI';
+const SHEET_NAME = '스트림스'; // 시트 탭 이름 그대로!
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>\\"']/g, m => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'
-    }[m]));
-  }
+// Apps Script 대신, 구글시트(GViz)에서 상위 10개 리더보드를 직접 읽어옵니다.
+async function gasFetchTop() {
+  // A=index, B=saved_at, C=name, D=score 를 가져오도록 범위 지정
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&range=A2:D`;
+  const res = await fetch(url, { method: 'GET' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+
+  // GViz 응답은 JS 콜백 래퍼가 있으므로 JSON 부분만 추출해서 파싱
+  const txt = await res.text();
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Failed to parse GViz JSON');
+  const data = JSON.parse(match[0]);
+
+  // 표 구조: rows[*].c[0]=index, c[1]=saved_at, c[2]=name, c[3]=score
+  const rows = (data.table?.rows || []).map(r => ({
+    index : r.c?.[0]?.v ?? '',
+    date  : r.c?.[1]?.v ?? '',
+    name  : r.c?.[2]?.v ?? '익명',
+    score : Number(r.c?.[3]?.v ?? 0)
+  }));
+
+  // 점수 내림차순, 동점이면 날짜 오름차순 → 상위 10개
+  rows.sort((a,b) => (b.score === a.score)
+    ? String(a.date).localeCompare(String(b.date))
+    : b.score - a.score);
+
+  return rows.slice(0,10);
+}
+</script>
+<!-- ▲▲▲ /구글시트 직접 읽기 ▲▲▲ -->
+
 
   /* 서버 랭킹 렌더링 */
   function renderServerRanking(rows){
@@ -965,6 +987,7 @@
 
 </body>
 </html>
+
 
 
 
