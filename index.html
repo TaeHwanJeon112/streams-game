@@ -850,23 +850,61 @@
         });
     }
 
-    function submitResult() {
-        const playerName = document.getElementById('player').value.trim() || "익명";
-        const finalScore = parseInt(document.getElementById('score').textContent, 10);
-        const finalBoardState = Array.from(board.children).map(cell => cell.textContent);
-        const drawOrderState = drawOrder.map(val => val === '*' ? '☆' : val);
+   // 교체 시작: submitResult
+async function submitResult() {
+  const playerName = (document.getElementById('player')?.value || '').trim() || '익명';
+  const finalScore = parseInt(document.getElementById('score')?.textContent || '0', 10) || 0;
 
-        alert(`${playerName}님의 최종 점수는 ${finalScore}점입니다!\n(결과가 브라우저 콘솔 및 개인 랭킹에 기록됩니다.)`);
+  // 보드 상태 / 뽑은 순서
+  const finalBoardState = Array.from(document.getElementById('board').children).map(cell => cell.textContent);
+  const drawOrderState  = (typeof drawOrder !== 'undefined' && Array.isArray(drawOrder) ? drawOrder : [])
+                            .map(v => v === '*' ? '☆' : v);
 
-        saveRanking(playerName, finalScore);
+  // 표시용 날짜
+  const nowStr = new Date().toLocaleString('ko-KR', {
+    year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+  });
 
-        console.log("--- 스트림스 게임 결과 ---");
-        console.log("플레이어:", playerName);
-        console.log("최종 점수:", finalScore);
-        console.log("뽑은 타일 순서:", drawOrderState.join(', '));
-        console.log("최종 보드 상태:", finalBoardState.join(', '));
-        console.log("------------------------");
+  // 안내
+  alert(`${playerName}님의 최종 점수는 ${finalScore}점입니다!\n(결과가 서버 랭킹/월별 랭킹에도 반영됩니다.)`);
+
+  // 1) 로컬 랭킹 갱신(왼쪽 카드)
+  saveRanking(playerName, finalScore);
+
+  // 2) 서버(GAS)로 기록 저장 → 구글시트 반영
+  try {
+    if (typeof gasSave === 'function') {
+      await gasSave({
+        name:  playerName,
+        score: finalScore,
+        tiles: finalBoardState,
+        order: drawOrderState,
+        date:  nowStr
+      });
     }
+  } catch (e) {
+    console.warn('GAS 저장 실패:', e);
+  }
+
+  // 3) 서버 랭킹/월별 랭킹 다시 불러오기
+  try {
+    if (typeof refreshRanking === 'function') {
+      await refreshRanking();
+    }
+  } catch (e) {
+    console.warn('랭킹 새로고침 실패:', e);
+  }
+
+  // (선택) 기존 로그 유지
+  console.log('--- 스트림스 게임 결과 ---');
+  console.log('플레이어:', playerName);
+  console.log('최종 점수:', finalScore);
+  console.log('뽑은 타일 순서:', drawOrderState.join(', '));
+  console.log('최종 보드 상태:', finalBoardState.join(', '));
+  console.log('------------------------');
+}
+// 교체 끝
+
 
     document.addEventListener('DOMContentLoaded', () => {
         renderRemainingTiles();
@@ -1078,6 +1116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 </body>
 </html>
+
 
 
 
