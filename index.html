@@ -192,6 +192,19 @@
         color: #777;
     }
   </style>
+
+<style>
+  .rankings-wrap{ display:flex; gap:16px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+  .ranking-card{ width:300px; border:1px solid #ccc; background:#f9f9f9; padding:20px; text-align:left; }
+  .ranking-card h3{ text-align:center; margin-bottom:12px; }
+  .month-control{ margin-bottom:10px; text-align:center; }
+  .month-control select{ padding:4px 8px; }
+  #rankingList, #rankingListMonthly{ list-style:none; padding:0; margin:0; }
+  #rankingList li, #rankingListMonthly li{ padding:5px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; }
+  #rankingList li:last-child, #rankingListMonthly li:last-child{ border-bottom:none; }
+  .rank-name{ font-weight:700; } .rank-score{ color:#07f; } .rank-date{ font-size:.8em; color:#777; }
+</style>
+
 </head>
 <body>
   <div class="container">
@@ -947,7 +960,44 @@ function renderServerRanking(rows){
 }
 
 /* 서버 랭킹 갱신: 실패 시 localStorage 폴백 */
-async function refreshRanking(){
+async 
+function monthKeyFrom(dateStr){
+  const s = String(dateStr || '');
+  const m = s.match(/^(\d{4})[-/.](\d{1,2})/);
+  if (!m) return '';
+  return `${m[1]}-${String(m[2]).padStart(2,'0')}`;
+}
+
+
+
+function buildMonthOptions(rows){
+  const sel=document.getElementById('monthSelect'); if(!sel) return;
+  const keys=[...new Set(rows.map(r=>monthKeyFrom(r.date || r.saved_at)).filter(Boolean))];
+  keys.sort((a,b)=>b.localeCompare(a));
+  sel.innerHTML='';
+  const now=new Date(); const current=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  keys.forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); });
+  if(keys.includes(current)) sel.value=current; else if(keys.length) sel.value=keys[0]; else { sel.innerHTML=''; }
+}
+
+
+
+function renderMonthlyRankingFor(monthKey, rows){
+  const ul=document.getElementById('rankingListMonthly'); if(!ul) return;
+  ul.innerHTML='';
+  const monthly=rows.filter(r=>monthKeyFrom(r.date || r.saved_at)===monthKey);
+  if(!monthly.length){ ul.innerHTML='<li>이 달의 랭킹이 없습니다.</li>'; return; }
+  monthly.slice(0,10).forEach((r,i)=>{
+    const li=document.createElement('li');
+    const d=r.date || r.saved_at || '';
+    li.innerHTML=`<span class="rank-name">${i+1}. ${r.name ? r.name.replace(/[&<>"]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s])) : '익명'}</span>
+                  <span><span class="rank-score">${r.score}점</span> <span class="rank-date">(${d})</span></span>`;
+    ul.appendChild(li);
+  });
+}
+
+
+function refreshRanking(){
   try {
     const data = await gasFetchTop();
     renderServerRanking(data);
