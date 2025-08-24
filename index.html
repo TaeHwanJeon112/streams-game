@@ -992,9 +992,20 @@ function renderMonthlyRankingFor(monthKey, rows){
 
 
 function refreshRanking(){
-  try {
+  try{
     const data = await gasFetchTop();
-    renderServerRanking(data);
+    if (typeof renderServerRanking === 'function') renderServerRanking(data);
+    if (document.getElementById('rankingAreaMonthly')){
+      buildMonthOptions(data);
+      const sel = document.getElementById('monthSelect');
+      if (sel && sel.options && sel.options.length){
+        renderMonthlyRankingFor(sel.value, data);
+        sel.onchange = () => renderMonthlyRankingFor(sel.value, data);
+      } else {
+        const ul = document.getElementById('rankingListMonthly');
+        if (ul) ul.innerHTML = '<li>월 데이터가 없습니다.</li>';
+      }
+    }
   } catch (e) {
     console.warn('Server ranking unavailable, falling back to local ranking.', e);
     if (typeof displayRanking === 'function') displayRanking();
