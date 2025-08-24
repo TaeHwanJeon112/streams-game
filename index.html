@@ -900,7 +900,7 @@ async function gasFetchTop() {
   // 표 구조: rows[*].c[0]=index, c[1]=saved_at, c[2]=name, c[3]=score
   const rows = (data.table?.rows || []).map(r => ({
     index : r.c?.[0]?.v ?? '',
-    date  : r.c?.[1]?.v ?? '',
+    date  : (r.c?.[1]?.f ?? r.c?.[1]?.v ?? ''),
     name  : r.c?.[2]?.v ?? '익명',
     score : Number(r.c?.[3]?.v ?? 0)
   }));
@@ -915,6 +915,12 @@ async function gasFetchTop() {
 /* ▲▲▲ /구글시트 직접 읽기 ▲▲▲ */
 
 /* 서버 랭킹 렌더링 */
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(m){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]);
+  });
+}
 function renderServerRanking(rows){
   const ul = document.getElementById('rankingList');
   if (!ul) return;
