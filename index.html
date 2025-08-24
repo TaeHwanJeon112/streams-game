@@ -850,66 +850,65 @@
         });
     }
 
-// 교체 시작: submitResult
-async function submitResult() {
-  const playerName = (document.getElementById('player')?.value || '').trim() || '익명';
-  const finalScore = parseInt(document.getElementById('score')?.textContent || '0', 10) || 0;
+    // 교체 시작: submitResult
+    async function submitResult() {
+      const playerName = (document.getElementById('player')?.value || '').trim() || '익명';
+      const finalScore = parseInt(document.getElementById('score')?.textContent || '0', 10) || 0;
 
-  // 보드 상태 / 뽑은 순서
-  const finalBoardState = Array.from(document.getElementById('board').children).map(cell => cell.textContent);
-  const drawOrderState  = (typeof drawOrder !== 'undefined' && Array.isArray(drawOrder) ? drawOrder : [])
-                            .map(v => v === '*' ? '☆' : v);
+      // 보드 상태 / 뽑은 순서
+      const finalBoardState = Array.from(document.getElementById('board').children).map(cell => cell.textContent);
+      const drawOrderState  = (typeof drawOrder !== 'undefined' && Array.isArray(drawOrder) ? drawOrder : [])
+                                .map(v => v === '*' ? '☆' : v);
 
-  // 표시용 날짜
-  const nowStr = new Date().toLocaleString('ko-KR', {
-    year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
-  });
-
-  // 안내
-  alert(`${playerName}님의 최종 점수는 ${finalScore}점입니다!\n(결과가 서버 랭킹/월별 랭킹에도 반영됩니다.)`);
-
-  // 1) 로컬 랭킹 갱신(왼쪽 카드)
-  saveRanking(playerName, finalScore);
-
-  // 2) 서버(GAS)로 기록 저장 → 구글시트 반영
-  try {
-    if (typeof gasSave === 'function') {
-      await gasSave({
-        name:  playerName,
-        score: finalScore,
-        tiles: finalBoardState,
-        order: drawOrderState,
-        date:  nowStr
-      
+      // 표시용 날짜
+      const nowStr = new Date().toLocaleString('ko-KR', {
+        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
       });
-      window.refreshLeaderboards && window.refreshLeaderboards();
-    }
-  } catch (e) {
-    console.warn('GAS 저장 실패:', e);
-  }
 
-  // 3) 서버 랭킹/월별 랭킹 다시 불러오기
-  try {
-    if (typeof refreshRanking === 'function') {
-      await refreshRanking();
-      await refreshMonthly();   // ← 저장 직후 월별 재조회
+      // 안내
+      alert(`${playerName}님의 최종 점수는 ${finalScore}점입니다!\n(결과가 서버 랭킹/월별 랭킹에도 반영됩니다.)`);
 
-    }
-  } catch (e) {
-    console.warn('랭킹 새로고침 실패:', e);
-  }
+      // 1) 로컬 랭킹 갱신(왼쪽 카드)
+      saveRanking(playerName, finalScore);
 
-  // (선택) 기존 로그 유지
-  console.log('--- 스트림스 게임 결과 ---');
-  console.log('플레이어:', playerName);
-  console.log('최종 점수:', finalScore);
-  console.log('뽑은 타일 순서:', drawOrderState.join(', '));
-  console.log('최종 보드 상태:', finalBoardState.join(', '));
-  console.log('------------------------');
+      // 2) 서버(GAS)로 기록 저장 → 구글시트 반영
+      try {
+        if (typeof gasSave === 'function') {
+          await gasSave({
+            name:  playerName,
+            score: finalScore,
+            tiles: finalBoardState,
+            order: drawOrderState,
+            date:  nowStr
+          });
+        window.refreshLeaderboards && window.refreshLeaderboards();
+        }
+      } catch (e) {
+        console.warn('GAS 저장 실패:', e);
+      }
+
+      // 3) 서버 랭킹/월별 랭킹 다시 불러오기
+      try {
+        if (typeof refreshRanking === 'function') {
+          await refreshRanking();
+          await refreshMonthly();   // ← 저장 직후 월별 재조회
+
+        }
+      } catch (e) {
+        console.warn('랭킹 새로고침 실패:', e);
+      }
+
+      // (선택) 기존 로그 유지
+      console.log('--- 스트림스 게임 결과 ---');
+      console.log('플레이어:', playerName);
+      console.log('최종 점수:', finalScore);
+      console.log('뽑은 타일 순서:', drawOrderState.join(', '));
+      console.log('최종 보드 상태:', finalBoardState.join(', '));
+      console.log('------------------------');
  
  
 
-}
+    }
 // 교체 끝
 
 
@@ -944,32 +943,32 @@ async function submitResult() {
     }
 
     /* ---------- GAS 저장 엔드포인트 ---------- */
-    // 상단 어딘가에 있는 상수
     const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxgbLncrrhsSbeELavWpd_V_HN5CttKm0ve9gIS7H4vbPB45TpkSC-Cgmp31EtReFX4zQ/exec';
 
-    // 이 함수만 교체
     async function gasSave({name, score, tiles, order, date}) {
       const params = new URLSearchParams({
-        action: 'save',
+        action:'save',
         name : String(name || '익명'),
         score: String(score || 0),
         tiles: Array.isArray(tiles) ? tiles.join(',') : String(tiles || ''),
         order: Array.isArray(order) ? order.join(',') : String(order || ''),
         date : String(date || '')
       });
-      const res = await fetch(`${GAS_ENDPOINT}?${params.toString()}`, { method: 'GET' });
+      const url = `${GAS_ENDPOINT}?${params.toString()}`;
+      const res = await fetch(url, { method:'GET', redirect:'follow' });
 
-      // 여기서 반드시 응답 내용을 확인!
-      const txt = await res.text();
+      // 응답 본문을 반드시 확인 (텍스트/JSON 모두 케이스 처리)
+      const text = await res.text();
       let data;
-      try { data = JSON.parse(txt); } catch { data = { ok:false, raw:txt }; }
+      try { data = JSON.parse(text); } catch { data = { ok:false, raw:text }; }
 
       if (!res.ok || !data || data.ok === false) {
-        console.warn('GAS save error:', res.status, data);
-        throw new Error(`GAS save failed: HTTP ${res.status} / ${JSON.stringify(data)}`);
+        console.warn('GAS save failed:', res.status, data);
+        throw new Error(`GAS save failed: HTTP ${res.status}, body=${text}`);
       }
-      return data; // {ok:true, msg:'saved', ...}
+      return data; // { ok:true, msg:'saved', ... }
     }
+
 
 
     /* ---------- GViz 조회 (전체/월별) ---------- */
@@ -1264,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
 
 </body>
 </html>
+
 
 
 
