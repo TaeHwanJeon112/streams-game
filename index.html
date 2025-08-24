@@ -904,6 +904,9 @@ async function submitResult() {
   console.log('뽑은 타일 순서:', drawOrderState.join(', '));
   console.log('최종 보드 상태:', finalBoardState.join(', '));
   console.log('------------------------');
+ 
+  window.refreshLeaderboards && window.refreshLeaderboards();
+
 }
 // 교체 끝
 
@@ -1133,6 +1136,112 @@ async function refreshMonthly(){
   }
 }
 document.addEventListener('DOMContentLoaded', () => { refreshMonthly(); });
+</script>
+<script>
+/* ===== 단일 리더보드 모듈: 전체 Top10 + 월별 Top10 (충돌 방지용) ===== */
+(function(){
+  // 시트 정보 (필요 시 바꿔주세요)
+  const SHEET_ID   = '1jBL_ZHXPJUCCopdPm-SVjmQLDw_zoQHoO6K9vJ95CiI';
+  const SHEET_NAME = '스트림스';
+
+  // DOM
+  const overallUL = document.getElementById('rankingList');
+  const monthUL   = document.getElementById('rankingListMonthly');
+  const monthSel  = document.getElementById('monthSelect');
+
+  if (!overallUL) return; // 카드가 없으면 종료
+
+  // 유틸
+  const mkey = s => {
+    const m = String(s||'').match(/^(\d{4})[-/.](\d{1,2})/);
+    return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}` : '';
+  };
+  const html = (i, r) =>
+    `<span class="rank-name">${i}. ${r.name||'익명'}</span>
+     <span><span class="rank-score">${r.score}점</span> <span class="rank-date">(${r.date||''})</span></span>`;
+
+  async function fetchAllRows(){
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&range=A2:D`;
+    const res = await fetch(url, {method:'GET'});
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const txt = await res.text();
+    const m = txt.match(/\{[\s\S]*\}/);
+    const data = JSON.parse(m[0]);
+    const rows = (data.table?.rows||[]).map(r=>({
+      index : r.c?.[0]?.v ?? '',
+      date  : r.c?.[1]?.f ?? r.c?.[1]?.v ?? '',
+      name  : r.c?.[2]?.v ?? '익명',
+      score : Number(r.c?.[3]?.v ?? 0),
+    })).filter(r=>!Number.isNaN(r.score));
+    // 점수 내림차순, 동점시 날짜 오름
+    rows.sort((a,b)=> (b.score===a.score) ? String(a.date).localeCompare(String(b.date)) : b.score-a.score);
+    return rows;
+  }
+
+  function renderOverall(rows){
+    if (!overallUL) return;
+    overallUL.innerHTML = '';
+    rows.slice(0,10).forEach((r, i)=>{
+      const li = document.createElement('li');
+      li.innerHTML = html(i+1, r);
+      overallUL.appendChild(li);
+    });
+  }
+
+  function buildMonthOptions(rows){
+    if (!monthSel) return;
+    const keys = [...new Set(rows.map(r=>mkey(r.date)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+    monthSel.innerHTML = '';
+    keys.forEach(k=>{
+      const o = document.createElement('option');
+      o.value = k; o.textContent = k;
+      monthSel.appendChild(o);
+    });
+    const now = new Date();
+    const cur = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    monthSel.value = keys.includes(cur) ? cur : (keys[0]||'');
+  }
+
+  function renderMonthly(rows){
+    if (!monthUL || !monthSel) return;
+    monthUL.innerHTML = '';
+    const target = monthSel.value;
+    const list = rows.filter(r=>mkey(r.date)===target).slice(0,10);
+    if (!list.length){ monthUL.innerHTML='<li>이 달의 랭킹이 없습니다.</li>'; return; }
+    list.forEach((r,i)=>{
+      const li = document.createElement('li');
+      li.innerHTML = html(i+1, r);
+      monthUL.appendChild(li);
+    });
+  }
+
+  async function refreshAll(){
+    try{
+      const rows = await fetchAllRows();   // 항상 "전체 행"
+      renderOverall(rows);                 // 전체 Top10
+      if (monthSel && monthUL){
+        buildMonthOptions(rows);           // 드롭다운
+        renderMonthly(rows);               // 현재 선택 월 Top10
+        monthSel.onchange = ()=> renderMonthly(rows);
+      }
+    } catch (e){
+      console.warn('리더보드 갱신 실패:', e);
+      if (overallUL && !overallUL.children.length)
+        overallUL.innerHTML = '<li>서버 랭킹을 불러오지 못했습니다.</li>';
+      if (monthUL && !monthUL.children.length)
+        monthUL.innerHTML = '<li>월별 데이터를 불러오지 못했습니다.</li>';
+    }
+  }
+
+  // 외부에서 저장 후 재호출할 수 있도록 노출
+  window.refreshLeaderboards = refreshAll;
+
+  // DOM 준비 후 한 번만 실행 (기존 중복 로직이 있어도 우리가 마지막에 덮어씀)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // 다른 스크립트보다 늦게 실행되도록 약간 지연
+    setTimeout(refreshAll, 50);
+  });
+})();
 </script>
 
 </body>
